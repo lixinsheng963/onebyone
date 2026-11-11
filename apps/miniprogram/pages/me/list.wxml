@@ -1,0 +1,65 @@
+<view class="list-page safe-page page-wrap">
+  <view class="list-head">
+    <view class="list-kicker">MY CAMPUS / {{type}}</view>
+    <view class="list-title serif">{{title}}</view>
+  </view>
+
+  <view wx:if="{{loading}}" class="loading">
+    <view class="skeleton loading-line"></view>
+    <view class="skeleton loading-line short"></view>
+    <view class="skeleton loading-line"></view>
+  </view>
+
+  <view wx:elif="{{!items.length}}" class="empty-wrap">
+    <empty-state
+      title="{{type === 'posts' ? '还没有发布过内容' : type === 'comments' ? '还没有评论过' : '还没有收藏'}}"
+      sub="{{type === 'posts' ? '今天校园里有什么，写下来吧。' : '去首页看看，遇到喜欢的就留下来。'}}"
+      actionText="{{type === 'posts' ? '去发布' : '去首页'}}"
+      bind:action="onEmptyAction"
+    />
+  </view>
+
+  <block wx:elif="{{type === 'favorites'}}">
+    <post-card
+      wx:for="{{items}}"
+      wx:key="id"
+      post="{{item}}"
+      bind:open="onOpen"
+      bind:like="onCardLike"
+      bind:favorite="onCardFavorite"
+      bind:more="onCardMore"
+    />
+  </block>
+
+  <block wx:elif="{{type === 'posts'}}">
+    <view wx:for="{{items}}" wx:key="id" class="post-row card press" data-id="{{item.id}}" bindtap="onOpen">
+      <view class="post-row-top">
+        <view class="row-badges">
+          <text class="status {{item.status}}">{{item.statusText}}</text>
+          <text wx:if="{{item.pinnedAt}}" class="pinned-badge">置顶</text>
+        </view>
+        <text class="row-time">{{item.timeText}}</text>
+      </view>
+      <view class="post-row-text line-2">{{item.text}}</view>
+      <view class="post-row-meta">
+        <text wx:if="{{item.topic}}">#{{item.topic}}</text>
+        <text wx:if="{{item.location}}">· {{item.location}}</text>
+        <text class="row-count">♡ {{item.likeCount || 0}}　💬 {{item.commentCount || 0}}</text>
+      </view>
+      <view class="post-row-actions">
+        <text catchtap="togglePin" data-id="{{item.id}}">{{item.pinnedAt ? '取消置顶' : '置顶'}}</text>
+        <text class="danger" catchtap="deletePost" data-id="{{item.id}}">删除</text>
+      </view>
+    </view>
+  </block>
+
+  <block wx:else>
+    <view wx:for="{{items}}" wx:key="id" class="comment-row card press" data-id="{{item.postId}}" bindtap="onOpen">
+      <view class="comment-row-text">{{item.text}}</view>
+      <view class="comment-row-meta">
+        <text>来自帖子 {{item.postId}}</text>
+        <text>{{item.timeText}}</text>
+      </view>
+    </view>
+  </block>
+</view>

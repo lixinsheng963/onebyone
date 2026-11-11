@@ -1,0 +1,47 @@
+<view class="notice-detail safe-page">
+  <view wx:if="{{loading}}" class="page-wrap loading">
+    <view class="skeleton line"></view>
+    <view class="skeleton line short"></view>
+  </view>
+
+  <view wx:elif="{{!notice}}" class="empty">
+    <view class="empty-title serif">这条通知不存在</view>
+    <button class="btn-ghost" bindtap="goHome">返回首页</button>
+  </view>
+
+  <block wx:else>
+    <view class="notice-head {{notice.type}}">
+      <view class="notice-label">{{notice.type === 'emergency' ? '紧急通知' : '校方通知'}}</view>
+      <view class="notice-title serif">{{notice.title}}</view>
+      <view class="notice-source">{{notice.source}} · {{notice.dateText}}</view>
+    </view>
+
+    <view class="page-wrap notice-body-wrap">
+      <view class="notice-body">{{notice.body}}</view>
+
+      <view class="notice-meta card">
+        <view class="meta-row">
+          <text>发布来源</text>
+          <text>{{notice.source}}</text>
+        </view>
+        <view class="meta-row">
+          <text>有效期至</text>
+          <text>{{notice.effectiveTo}}</text>
+        </view>
+        <view class="meta-row">
+          <text>通知类型</text>
+          <text>{{notice.type === 'emergency' ? '紧急 · 首页顶部' : '校方普通通知'}}</text>
+        </view>
+      </view>
+
+      <view wx:if="{{notice.type === 'emergency'}}" class="notice-tip">
+        紧急通知只挂首页顶部；如信息有误，平台会发布更正说明，不悄悄删除。
+      </view>
+
+      <view class="notice-foot">
+        <text>校方通知 · 请以学校最新信息为准</text>
+        <button class="btn-ghost" bindtap="goHome">返回首页</button>
+      </view>
+    </view>
+  </block>
+</view>

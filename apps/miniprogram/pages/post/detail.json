@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "帖子",
+  "usingComponents": {
+    "comment-item": "/components/comment-item/index",
+    "skeleton": "/components/skeleton/index"
+  }
+}

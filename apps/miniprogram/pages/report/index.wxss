@@ -1,0 +1,96 @@
+.report-page {
+  padding-top: 30rpx;
+}
+
+.page-head {
+  padding: 8rpx 0 24rpx;
+}
+
+.kicker {
+  color: #b64a3a;
+  font-size: 18rpx;
+  letter-spacing: 0.18em;
+  font-weight: 600;
+}
+
+.title {
+  margin-top: 8rpx;
+  font-size: 48rpx;
+  line-height: 1.3;
+}
+
+.sub {
+  margin-top: 8rpx;
+  color: #7d857f;
+  font-size: 22rpx;
+  line-height: 1.6;
+}
+
+.reason-list {
+  margin-top: 8rpx;
+}
+
+.reason {
+  display: flex;
+  gap: 14rpx;
+  align-items: flex-start;
+  padding: 19rpx;
+  margin-bottom: 10rpx;
+}
+
+.reason.active {
+  border-color: #d9b6ab;
+  background: #fdf6f1;
+}
+
+.radio {
+  width: 30rpx;
+  height: 30rpx;
+  border-radius: 50%;
+  border: 2rpx solid #cfc6b6;
+  margin-top: 2rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+
+.reason.active .radio {
+  border-color: #b64a3a;
+}
+
+.radio-dot {
+  width: 15rpx;
+  height: 15rpx;
+  border-radius: 50%;
+  background: #b64a3a;
+}
+
+.reason-copy {
+  flex: 1;
+}
+
+.reason-label {
+  display: block;
+  font-size: 26rpx;
+  color: #1f2328;
+}
+
+.reason-hint {
+  display: block;
+  margin-top: 4rpx;
+  color: #9b9f99;
+  font-size: 20rpx;
+  line-height: 1.5;
+}
+
+.field {
+  margin-top: 24rpx;
+}
+
+.report-note {
+  margin: 20rpx 0 24rpx;
+  color: #9b9f99;
+  font-size: 20rpx;
+  line-height: 1.7;
+}

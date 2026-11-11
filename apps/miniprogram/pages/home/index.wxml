@@ -1,0 +1,107 @@
+<view class="home safe-page">
+  <view wx:if="{{emergency}}" class="emergency" bindtap="onEmergency">
+    <view class="emergency-label">紧急</view>
+    <view class="emergency-copy">
+      <text class="emergency-title">{{emergency.title}}</text>
+      <text class="emergency-sub">{{emergency.source}} · 有效期至 {{emergency.effectiveTo}}</text>
+    </view>
+    <text class="emergency-arrow">›</text>
+  </view>
+
+  <view class="page-wrap">
+    <view class="home-head">
+      <view class="date-row">
+        <text class="date">{{dateText}}</text>
+        <view class="message press" bindtap="onMessage">
+          <image src="/assets/icons/message.png" class="message-icon" />
+          <view wx:if="{{unread}}" class="unread"></view>
+        </view>
+      </view>
+      <view class="hero-title serif">今天校园里有什么？</view>
+      <view class="hero-sub">把小事记下来，让同校人看见。</view>
+    </view>
+
+    <view wx:if="{{officialNotice}}" class="official-card press" bindtap="onOfficialNotice">
+      <view class="official-rail"></view>
+      <view class="official-copy">
+        <view class="official-top">
+          <text class="badge badge-official">校方通知</text>
+          <text class="official-source">{{officialNotice.source}}</text>
+        </view>
+        <view class="official-title line-1">{{officialNotice.title}}</view>
+        <view class="official-body line-1">{{officialNotice.body}}</view>
+      </view>
+      <text class="official-arrow">›</text>
+    </view>
+
+    <view class="tabs-wrap">
+      <view class="tabs">
+        <view
+          wx:for="{{tabs}}"
+          wx:key="key"
+          class="tab {{tab === item.key ? 'active' : ''}}"
+          data-tab="{{item.key}}"
+          bindtap="onTab"
+        >
+          {{item.label}}
+          <view wx:if="{{tab === item.key}}" class="tab-line"></view>
+        </view>
+      </view>
+    </view>
+
+    <scroll-view scroll-x class="topics" enhanced show-scrollbar="{{false}}">
+      <view class="topic-inner">
+        <view
+          class="topic-chip {{!activeTopic ? 'active' : ''}}"
+          data-topic=""
+          bindtap="onTopic"
+        >全部</view>
+        <view
+          wx:for="{{topics}}"
+          wx:key="*this"
+          class="topic-chip {{activeTopic === item ? 'active' : ''}}"
+          data-topic="{{item}}"
+          bindtap="onTopic"
+        >{{item}}</view>
+      </view>
+    </scroll-view>
+
+    <view wx:if="{{loading}}" class="feed">
+      <skeleton />
+      <skeleton />
+    </view>
+
+    <view wx:elif="{{error}}" class="error-box">
+      <view class="serif error-title">今天的内容走丢了</view>
+      <view class="error-sub">{{error}}</view>
+      <button class="btn-ghost" bindtap="onRetry">重新加载</button>
+    </view>
+
+    <view wx:elif="{{!posts.length}}" class="empty-wrap">
+      <empty-state
+        title="{{activeTopic ? '这个话题还没有内容' : '今天校园里还没有内容'}}"
+        sub="{{activeTopic ? '换个话题看看，或者你来发第一条。' : '去拍一张晚霞，或写一句吐槽。'}}"
+        actionText="发布第一条"
+        bind:action="onEmptyAction"
+      />
+    </view>
+
+    <view wx:else class="feed">
+      <post-card
+        wx:for="{{posts}}"
+        wx:key="id"
+        post="{{item}}"
+        bind:open="onOpen"
+        bind:like="onLike"
+        bind:comment="onComment"
+        bind:favorite="onFavorite"
+        bind:more="onMore"
+      />
+      <view class="end-line">
+        <view class="end-line-rule"></view>
+        <text>{{activeTopic ? '这个话题先看到这里' : '今天就先看到这里'}}</text>
+        <view class="end-line-rule"></view>
+      </view>
+    </view>
+  </view>
+</view>

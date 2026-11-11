@@ -1,0 +1,103 @@
+<view class="publish safe-page">
+  <view class="top-row">
+    <text class="cancel" bindtap="onCancel">取消</text>
+    <text class="draft">{{draftSaved ? '草稿已保存' : '草稿自动保存'}}</text>
+  </view>
+
+  <view class="section">
+    <view class="section-head">
+      <view>
+        <text class="section-no">01</text>
+        <text class="section-title serif">图片</text>
+      </view>
+      <text class="section-hint">{{images.length}} / 9</text>
+    </view>
+    <view class="image-grid">
+      <view wx:for="{{images}}" wx:key="*this" class="image-cell">
+        <image src="{{item}}" mode="aspectFill" />
+        <view class="remove" catchtap="removeImage" data-index="{{index}}">×</view>
+      </view>
+      <view wx:if="{{images.length < 9}}" class="image-cell add" bindtap="chooseMedia">
+        <text class="add-plus">＋</text>
+        <text class="add-label">添加照片</text>
+      </view>
+    </view>
+    <view class="demo-row">
+      <text class="demo-link" bindtap="useDemoImages">没有照片？用示例图看看效果</text>
+    </view>
+  </view>
+
+  <view class="section">
+    <view class="section-head">
+      <view>
+        <text class="section-no">02</text>
+        <text class="section-title serif">说点什么</text>
+      </view>
+      <text class="section-hint">{{textLength}} / 1000</text>
+    </view>
+    <textarea
+      class="publish-textarea"
+      value="{{text}}"
+      placeholder="今天校园里发生了什么？一个画面、一句话、一个瞬间都可以。"
+      maxlength="1000"
+      auto-height
+      bindinput="onInput"
+    />
+  </view>
+
+  <view class="section">
+    <view class="section-head">
+      <view>
+        <text class="section-no">03</text>
+        <text class="section-title serif">发布设置</text>
+      </view>
+    </view>
+
+    <view class="setting-label">话题</view>
+    <view class="topic-list">
+      <view
+        wx:for="{{topics}}"
+        wx:key="*this"
+        class="topic {{topic === item ? 'active' : ''}}"
+        data-topic="{{item}}"
+        bindtap="onTopic"
+      >{{item}}</view>
+    </view>
+
+    <view class="setting-line">
+      <text class="setting-label inline">地点</text>
+      <picker mode="selector" range="{{locations}}" value="{{locationIndex}}" bindchange="onLocation">
+        <view class="picker-value">
+          <text class="{{location ? '' : 'placeholder'}}">{{location || '选择楼栋/区域'}}</text>
+          <text class="picker-arrow">›</text>
+        </view>
+      </picker>
+    </view>
+
+    <view class="switch-line">
+      <view>
+        <text class="switch-title">匿名发布</text>
+        <text class="switch-sub">只对其他同学匿名，平台可追溯</text>
+      </view>
+      <switch checked="{{anonymity}}" color="#b64a3a" bindchange="onAnonChange" />
+    </view>
+
+    <view class="switch-line">
+      <view>
+        <text class="switch-title">允许评论</text>
+        <text class="switch-sub">关闭后，已有评论仍保留</text>
+      </view>
+      <switch checked="{{commentsEnabled}}" color="#b64a3a" bindchange="onCommentsChange" />
+    </view>
+  </view>
+
+  <view class="publish-note">
+    <view class="note-dot"></view>
+    <text>发布后需审核，通常 30 分钟内完成；夜间可能次日完成。</text>
+  </view>
+
+  <view class="publish-footer">
+    <button class="btn-primary" bindtap="onPublish" loading="{{submitting}}" disabled="{{submitting}}">发布</button>
+    <view class="footer-safe"></view>
+  </view>
+</view>

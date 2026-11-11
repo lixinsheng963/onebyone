@@ -1,0 +1,236 @@
+.me-page {
+  min-height: 100vh;
+}
+
+.me-head {
+  padding: 32rpx 0 20rpx;
+}
+
+.me-kicker {
+  color: #b64a3a;
+  font-size: 18rpx;
+  letter-spacing: 0.2em;
+  font-weight: 600;
+}
+
+.me-title {
+  margin-top: 10rpx;
+  font-size: 50rpx;
+  line-height: 1.25;
+}
+
+.me-profile {
+  display: flex;
+  align-items: center;
+  margin-top: 30rpx;
+}
+
+.me-avatar {
+  width: 104rpx;
+  height: 104rpx;
+  border-radius: 50%;
+  background: #f3e4df;
+  color: #9c3d32;
+  font-family: "Songti SC", "SimSun", serif;
+  font-size: 42rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 18rpx;
+  box-shadow: inset 0 0 0 5rpx rgba(255, 253, 248, 0.7);
+}
+
+.me-profile-copy {
+  flex: 1;
+}
+
+.me-name {
+  display: flex;
+  align-items: center;
+  gap: 9rpx;
+  font-size: 32rpx;
+  font-weight: 600;
+}
+
+.verified {
+  padding: 3rpx 8rpx;
+  border-radius: 5rpx;
+  color: #32664d;
+  background: #e7f1ea;
+  font-size: 18rpx;
+  font-weight: 500;
+}
+
+.me-sub {
+  margin-top: 6rpx;
+  color: #7d857f;
+  font-size: 21rpx;
+  line-height: 1.5;
+}
+
+.stats-card {
+  display: flex;
+  align-items: center;
+  margin-top: 26rpx;
+  padding: 20rpx 0;
+}
+
+.stat-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.stat-num {
+  font-family: "Songti SC", "SimSun", serif;
+  font-size: 40rpx;
+  line-height: 1.1;
+  color: #1f2328;
+}
+
+.stat-label {
+  margin-top: 4rpx;
+  color: #7d857f;
+  font-size: 20rpx;
+}
+
+.stat-rule {
+  width: 1rpx;
+  height: 44rpx;
+  background: #e7e1d5;
+}
+
+.pending-tip {
+  display: flex;
+  align-items: center;
+  gap: 9rpx;
+  margin-top: 16rpx;
+  padding: 17rpx 20rpx;
+  border-radius: 14rpx;
+  background: #fbf0dc;
+  color: #8b5716;
+  font-size: 22rpx;
+}
+
+.pending-dot {
+  width: 9rpx;
+  height: 9rpx;
+  border-radius: 50%;
+  background: #b7791f;
+}
+
+.pending-arrow {
+  margin-left: auto;
+  font-size: 28rpx;
+}
+
+.menu-card {
+  margin-top: 18rpx;
+  overflow: hidden;
+}
+
+.menu-row {
+  display: flex;
+  align-items: center;
+  padding: 22rpx 22rpx;
+  border-bottom: 1rpx solid #f0ebe1;
+}
+
+.menu-row:last-child {
+  border-bottom: 0;
+}
+
+.menu-icon {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 16rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 15rpx;
+  font-size: 29rpx;
+}
+
+.menu-icon.warm { background: #f3e4df; color: #9c3d32; }
+.menu-icon.green { background: #e8efe7; color: #4d6b56; }
+.menu-icon.amber { background: #f8edd9; color: #9b6d2a; }
+.menu-icon.plain { background: #f1ede4; color: #7d857f; }
+
+.menu-copy {
+  flex: 1;
+}
+
+.menu-title {
+  display: block;
+  font-size: 27rpx;
+  font-weight: 500;
+  color: #1f2328;
+}
+
+.menu-copy text {
+  display: block;
+  margin-top: 4rpx;
+  color: #9b9f99;
+  font-size: 20rpx;
+}
+
+.menu-arrow {
+  color: #b0b2ac;
+  font-size: 30rpx;
+}
+
+.me-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5rpx;
+  padding: 44rpx 0 20rpx;
+  color: #b8b5ac;
+  font-size: 18rpx;
+  letter-spacing: 0.08em;
+}
+
+.me-footer text:first-child {
+  letter-spacing: 0.24em;
+  font-family: "Songti SC", "SimSun", serif;
+}
+
+.guest-wrap {
+  padding: 100rpx 44rpx;
+}
+
+.guest-stamp {
+  width: 116rpx;
+  height: 116rpx;
+  border: 4rpx solid #b64a3a;
+  border-radius: 50%;
+  color: #b64a3a;
+  font-family: "Songti SC", "SimSun", serif;
+  font-size: 44rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: rotate(-8deg);
+  margin-bottom: 44rpx;
+}
+
+.guest-title {
+  font-size: 50rpx;
+  line-height: 1.45;
+}
+
+.guest-sub {
+  margin: 18rpx 0 34rpx;
+  color: #7d857f;
+  font-size: 24rpx;
+  line-height: 1.8;
+  max-width: 560rpx;
+}
+
+.guest-link {
+  margin-top: 26rpx;
+  text-align: center;
+  color: #b64a3a;
+  font-size: 23rpx;
+}

@@ -1,0 +1,48 @@
+<view class="notice-page safe-page page-wrap">
+  <view class="page-head">
+    <view class="kicker">INBOX / 校园日常</view>
+    <view class="title serif">通知</view>
+    <view class="sub">只收互动、审核和校方通知，不做私信。</view>
+  </view>
+
+  <view class="tabs">
+    <view
+      wx:for="{{tabs}}"
+      wx:key="key"
+      class="tab {{tab === item.key ? 'active' : ''}}"
+      data-tab="{{item.key}}"
+      bindtap="onTab"
+    >{{item.label}}</view>
+  </view>
+
+  <view wx:if="{{loading}}" class="loading">
+    <view class="skeleton line"></view>
+    <view class="skeleton line short"></view>
+  </view>
+
+  <view wx:elif="{{!items.length}}" class="empty-wrap">
+    <empty-state title="还没有通知" sub="去首页看看，或者发一条校园日常。" actionText="去首页" bind:action="goHome" />
+  </view>
+
+  <view wx:else class="list">
+    <view
+      wx:for="{{items}}"
+      wx:key="id"
+      class="notice-row card press"
+      data-id="{{item.id}}"
+      bindtap="open"
+    >
+      <view class="notice-icon {{item.type}}">
+        {{item.type === 'interaction' ? '↩' : item.type === 'review' ? '✓' : '校'}}
+      </view>
+      <view class="notice-copy">
+        <view class="notice-top">
+          <text class="notice-title">{{item.title}}</text>
+          <text class="notice-time">{{item.timeText}}</text>
+        </view>
+        <view class="notice-body">{{item.body}}</view>
+      </view>
+      <view wx:if="{{!item.read}}" class="unread-dot"></view>
+    </view>
+  </view>
+</view>

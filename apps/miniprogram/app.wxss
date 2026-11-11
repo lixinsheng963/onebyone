@@ -1,0 +1,290 @@
+page {
+  background: #f7f5f0;
+  color: #1f2328;
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Noto Sans CJK SC", sans-serif;
+  font-size: 30rpx;
+  -webkit-font-smoothing: antialiased;
+}
+
+view, text, image, button, input, textarea, scroll-view {
+  box-sizing: border-box;
+}
+
+button {
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  line-height: 1.4;
+}
+
+button::after {
+  border: 0;
+}
+
+.page-wrap {
+  padding: 0 32rpx;
+}
+
+.serif {
+  font-family: "Songti SC", "SimSun", "Noto Serif CJK SC", serif;
+}
+
+.muted {
+  color: #7d857f;
+}
+
+.ink-2 {
+  color: #4b554f;
+}
+
+.tiny {
+  font-size: 22rpx;
+  line-height: 1.4;
+}
+
+.small {
+  font-size: 24rpx;
+  line-height: 1.45;
+}
+
+.line-2 {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.line-1 {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.card {
+  background: #fffdf8;
+  border: 1rpx solid #e7e1d5;
+  border-radius: 24rpx;
+  box-shadow: 0 12rpx 34rpx rgba(35, 42, 37, 0.045);
+}
+
+.hairline {
+  height: 1rpx;
+  background: #e7e1d5;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+}
+
+.between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.btn-primary {
+  height: 88rpx;
+  border-radius: 44rpx;
+  background: #b64a3a;
+  color: #fff;
+  font-size: 28rpx;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  letter-spacing: 0.04em;
+}
+
+.btn-primary[disabled] {
+  background: #d9c7c0;
+  color: #fff;
+}
+
+.btn-ghost {
+  height: 72rpx;
+  padding: 0 28rpx;
+  border-radius: 36rpx;
+  border: 1rpx solid #ddd5c6;
+  color: #4b554f;
+  font-size: 24rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-link {
+  color: #b64a3a;
+  font-size: 24rpx;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  height: 56rpx;
+  padding: 0 22rpx;
+  border-radius: 28rpx;
+  background: #fffdf8;
+  border: 1rpx solid #e7e1d5;
+  color: #4b554f;
+  font-size: 24rpx;
+  margin-right: 12rpx;
+  margin-bottom: 12rpx;
+}
+
+.chip.active {
+  background: #f3e4df;
+  border-color: #e4c5bb;
+  color: #9c3d32;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  height: 34rpx;
+  padding: 0 10rpx;
+  border-radius: 8rpx;
+  font-size: 20rpx;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.badge-official {
+  color: #245b9e;
+  background: #e8eff8;
+}
+
+.badge-emergency {
+  color: #fff;
+  background: #c62828;
+}
+
+.badge-soft {
+  color: #7d857f;
+  background: #f1ede4;
+}
+
+.badge-accent {
+  color: #9c3d32;
+  background: #f3e4df;
+}
+
+.divider {
+  padding: 28rpx 0 18rpx;
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  color: #9b9f99;
+  font-size: 22rpx;
+}
+
+.divider::before,
+.divider::after {
+  content: "";
+  height: 1rpx;
+  background: #e7e1d5;
+  flex: 1;
+}
+
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.press {
+  transition: opacity 0.15s ease;
+}
+
+.press:active {
+  opacity: 0.7;
+}
+
+.skeleton {
+  background: linear-gradient(90deg, #eee9df 25%, #f7f2e9 37%, #eee9df 63%);
+  background-size: 400% 100%;
+  animation: shimmer 1.4s ease infinite;
+  border-radius: 12rpx;
+}
+
+@keyframes shimmer {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
+}
+
+.empty {
+  padding: 90rpx 30rpx;
+  text-align: center;
+  color: #7d857f;
+}
+
+.empty-title {
+  margin-top: 22rpx;
+  font-size: 32rpx;
+  color: #1f2328;
+  font-family: "Songti SC", "SimSun", serif;
+}
+
+.empty-sub {
+  margin-top: 10rpx;
+  font-size: 24rpx;
+  line-height: 1.7;
+}
+
+.sheet-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(22, 26, 23, 0.42);
+  z-index: 100;
+  display: flex;
+  align-items: flex-end;
+}
+
+.sheet {
+  width: 100%;
+  background: #fffdf8;
+  border-radius: 32rpx 32rpx 0 0;
+  padding: 30rpx 32rpx calc(30rpx + env(safe-area-inset-bottom));
+  animation: sheet-in 0.22s ease-out;
+}
+
+@keyframes sheet-in {
+  from { transform: translateY(30rpx); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.field {
+  margin-bottom: 26rpx;
+}
+
+.field-label {
+  display: block;
+  margin-bottom: 12rpx;
+  font-size: 23rpx;
+  color: #7d857f;
+  letter-spacing: 0.04em;
+}
+
+.input {
+  width: 100%;
+  height: 86rpx;
+  border-radius: 18rpx;
+  background: #f7f2e9;
+  padding: 0 24rpx;
+  font-size: 28rpx;
+  color: #1f2328;
+}
+
+.textarea {
+  width: 100%;
+  min-height: 220rpx;
+  border-radius: 18rpx;
+  background: #f7f2e9;
+  padding: 22rpx 24rpx;
+  font-size: 28rpx;
+  line-height: 1.7;
+  color: #1f2328;
+}
+
+.safe-page {
+  min-height: 100vh;
+  padding-bottom: calc(40rpx + env(safe-area-inset-bottom));
+}

@@ -1,0 +1,60 @@
+<view class="guide-page safe-page">
+  <view class="guide-hero">
+    <view class="guide-kicker">CAMPUS DAILY / 社区公约</view>
+    <view class="guide-title serif">先做人，<br />再发帖。</view>
+    <view class="guide-sub">这里不是流量场，也不是树洞。它是一个同校人互相看见的地方。</view>
+    <view class="guide-seal">日常</view>
+  </view>
+
+  <view class="page-wrap">
+    <view class="rule">
+      <view class="rule-no">01</view>
+      <view class="rule-copy">
+        <view class="rule-title">不曝光别人的隐私</view>
+        <view class="rule-text">手机号、宿舍号、学号、聊天截图、人脸、证件，都不发。拍别人之前，先问一句。</view>
+      </view>
+    </view>
+
+    <view class="rule">
+      <view class="rule-no">02</view>
+      <view class="rule-copy">
+        <view class="rule-title">不挂人，不网暴</view>
+        <view class="rule-text">可以批评一件事，不要审判一个人。未证实的指控、偷拍、嘲讽外貌和口音，都不属于校园日常。</view>
+      </view>
+    </view>
+
+    <view class="rule">
+      <view class="rule-no">03</view>
+      <view class="rule-copy">
+        <view class="rule-title">不把这里当广告牌</view>
+        <view class="rule-text">兼职、代写、贷款、二维码、加微信、二手交易，都不发。校方通知只走官方账号。</view>
+      </view>
+    </view>
+
+    <view class="rule">
+      <view class="rule-no">04</view>
+      <view class="rule-copy">
+        <view class="rule-title">不确定，就先别发</view>
+        <view class="rule-text">涉及具体个人、校园事件、健康和安全的信息，先核实。平台也会拦下高风险内容，交给人工复核。</view>
+      </view>
+    </view>
+
+    <view class="guide-box">
+      <view class="box-title serif">如果内容被拦下</view>
+      <view class="box-text">先看拒绝理由；如果是误判，可以申诉。申诉由没有参与原审核的人复核，24 小时内反馈。</view>
+      <view class="box-link" bindtap="goAppeal">去申诉 ›</view>
+    </view>
+
+    <view class="guide-box soft">
+      <view class="box-title serif">匿名，不等于没有边界</view>
+      <view class="box-text">匿名只对其他同学匿名；平台在必要时应法律程序可追溯。匿名不是伤害别人的许可证。</view>
+    </view>
+
+    <view class="guide-foot">
+      <text>校园日常 · 单校版</text>
+      <text>最后更新：2026-11-07</text>
+    </view>
+
+    <button class="btn-ghost home-btn" bindtap="goHome">回首页看看</button>
+  </view>
+</view>

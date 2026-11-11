@@ -1,0 +1,93 @@
+<view class="auth-page">
+  <view class="auth-glow"></view>
+
+  <view wx:if="{{step === 'welcome'}}" class="auth-wrap">
+    <view class="stamp">
+      <text class="stamp-year">CAMPUS</text>
+      <text class="stamp-day">日常</text>
+    </view>
+    <view class="auth-kicker">ONLY FOR THIS CAMPUS</view>
+    <view class="auth-title serif">只记录我们学校<br />今天发生的小事。</view>
+    <view class="auth-desc">不追热点，不做万能平台。这里只有同校人看得懂的日常。</view>
+
+    <view class="feature-list">
+      <view class="feature">
+        <text class="feature-no">01</text>
+        <view><text class="feature-title">低压力分享</text><text class="feature-desc">匿名只对其他同学匿名，平台可追溯。</text></view>
+      </view>
+      <view class="feature">
+        <text class="feature-no">02</text>
+        <view><text class="feature-title">只属于本校</text><text class="feature-desc">邀请码 + 现场认证，减少冒充和广告。</text></view>
+      </view>
+      <view class="feature">
+        <text class="feature-no">03</text>
+        <view><text class="feature-title">有边界的表达</text><text class="feature-desc">不挂人、不曝光隐私；审核和申诉都在。</text></view>
+      </view>
+    </view>
+
+    <button class="btn-primary auth-login" bindtap="onLogin" loading="{{logging}}">微信一键登录</button>
+    <view class="auth-note">浏览不需要登录；登录后可点赞、收藏、评论。</view>
+    <view class="auth-legal">登录即同意《用户协议》和《隐私政策》</view>
+  </view>
+
+  <view wx:elif="{{step === 'code'}}" class="auth-wrap auth-form-wrap">
+    <view class="back-link" bindtap="back">‹ 返回</view>
+    <view class="form-kicker">INVITE CODE</view>
+    <view class="form-title serif">输入邀请码</view>
+    <view class="form-sub">邀请码单次有效，7 天内使用。没有邀请码可以去现场认证。</view>
+
+    <view class="code-box">
+      <input
+        class="code-input"
+        value="{{code}}"
+        maxlength="8"
+        placeholder="CAMPUS"
+        bindinput="onCode"
+        focus
+      />
+    </view>
+    <view wx:if="{{error}}" class="form-error">{{error}}</view>
+
+    <button class="btn-primary" bindtap="redeem" loading="{{redeeming}}">验证并认证</button>
+    <view class="form-link" bindtap="goOnsite">没有邀请码？去现场认证 ›</view>
+  </view>
+
+  <view wx:elif="{{step === 'onsite'}}" class="auth-wrap auth-form-wrap">
+    <view class="back-link" bindtap="goCode">‹ 返回</view>
+    <view class="form-kicker">ON-SITE</view>
+    <view class="form-title serif">现场认证</view>
+    <view class="form-sub">在迎新/社团摊位，工作人员会给你一个一次性认证码。我们只看校园卡，不拍照、不存证件。</view>
+
+    <view class="code-box">
+      <input
+        class="code-input"
+        value="{{onsiteCode}}"
+        maxlength="8"
+        placeholder="输入现场码"
+        bindinput="onOnsiteCode"
+        focus
+      />
+    </view>
+    <view wx:if="{{error}}" class="form-error">{{error}}</view>
+
+    <button class="btn-primary" bindtap="submitOnsite">完成现场认证</button>
+    <view class="form-note">演示环境：现场码同样使用 <text>CAMPUS</text></view>
+  </view>
+
+  <view wx:else class="auth-wrap done-wrap">
+    <view class="done-mark">✓</view>
+    <view class="form-kicker">VERIFIED</view>
+    <view class="form-title serif">认证成功</view>
+    <view class="form-sub">现在可以发布、评论和点赞。请先读一遍社区公约，再开始分享。</view>
+    <view class="done-card">
+      <view class="done-avatar">{{userInitial}}</view>
+      <view>
+        <text class="done-name">{{user.nickname || '本校同学'}}</text>
+        <text>L2 校园认证 · {{user.school || '示例大学'}}</text>
+      </view>
+      <view class="done-badge">已认证</view>
+    </view>
+    <button class="btn-primary" bindtap="goHome">去首页看看</button>
+    <view class="form-link" bindtap="goHome">先读社区公约 ›</view>
+  </view>
+</view>

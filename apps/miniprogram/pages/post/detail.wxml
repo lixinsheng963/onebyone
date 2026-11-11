@@ -1,0 +1,125 @@
+<view class="detail safe-page">
+  <view wx:if="{{loading}}" class="page-wrap detail-loading">
+    <view class="skeleton loading-cover"></view>
+    <view class="skeleton loading-line"></view>
+    <view class="skeleton loading-line short"></view>
+  </view>
+
+  <view wx:elif="{{error}}" class="error-box">
+    <view class="serif error-title">{{error}}</view>
+    <button class="btn-ghost" bindtap="load">重新加载</button>
+  </view>
+
+  <block wx:else>
+    <view class="page-wrap">
+      <view wx:if="{{post.media.length === 1}}" class="hero-media" bindtap="onPreview" data-index="0">
+        <image src="{{post.media[0].url}}" mode="aspectFill" />
+      </view>
+      <view wx:elif="{{post.media.length === 2}}" class="double-media">
+        <image
+          wx:for="{{post.media}}"
+          wx:key="url"
+          src="{{item.url}}"
+          mode="aspectFill"
+          data-index="{{index}}"
+          bindtap="onPreview"
+        />
+      </view>
+      <view wx:elif="{{post.media.length > 2}}" class="detail-grid">
+        <block wx:for="{{post.media}}" wx:key="url">
+          <image wx:if="{{index < 9}}" src="{{item.url}}" mode="aspectFill" data-index="{{index}}" bindtap="onPreview" />
+        </block>
+      </view>
+
+      <view class="post-body">
+        <view wx:if="{{post.featured}}" class="featured">今日精选</view>
+        <view class="post-text">{{post.text}}</view>
+
+        <view class="meta-row">
+          <text wx:if="{{post.topic}}" class="topic">#{{post.topic}}</text>
+          <text wx:if="{{post.location}}" class="meta-location">· {{post.location}}</text>
+          <text class="meta-time">{{post.timeText}}</text>
+        </view>
+
+        <view class="author-row">
+          <view class="author-avatar">{{post.author.initial}}</view>
+          <view class="author-copy">
+            <view class="author-name">
+              {{post.author.isAnonymous ? post.author.alias : post.author.nickname}}
+              <text wx:if="{{post.author.isOfficial}}" class="badge badge-official">官方</text>
+            </view>
+            <view class="author-sub">来自本校 · {{post.timeText}}</view>
+          </view>
+          <view class="author-mark">CAMPUS</view>
+        </view>
+
+        <view class="disclaimer">以上内容为用户分享，不代表平台立场。</view>
+      </view>
+
+      <view class="comments-head">
+        <view class="comments-title serif">评论 <text>{{post.commentCount}}</text></view>
+        <view class="comments-sort">最新</view>
+      </view>
+
+      <view wx:if="{{!post.commentsEnabled}}" class="comments-closed">作者已关闭评论</view>
+      <view wx:elif="{{!comments.length}}" class="comments-empty">还没有评论，来说第一句。</view>
+      <view wx:else class="comments">
+        <comment-item
+          wx:for="{{comments}}"
+          wx:key="id"
+          comment="{{item}}"
+          bind:reply="onReply"
+          bind:report="onReportComment"
+        />
+      </view>
+    </view>
+
+    <view class="bottom-space"></view>
+
+    <view class="action-bar">
+      <view class="comment-input-preview" bindtap="onFocus">
+        <text wx:if="{{replyTarget}}">回复 @{{replyTarget.nickname}}</text>
+        <text wx:else>写评论...</text>
+      </view>
+      <view class="action-icon-wrap" bindtap="onLike">
+        <image src="{{post.liked ? '/assets/icons/heart-active.png' : '/assets/icons/heart.png'}}" class="action-icon" />
+        <text class="{{post.liked ? 'active' : ''}}">{{post.likeCount}}</text>
+      </view>
+      <view class="action-icon-wrap" bindtap="onFavorite">
+        <image src="{{post.favorited ? '/assets/icons/star-active.png' : '/assets/icons/star.png'}}" class="action-icon" />
+        <text class="{{post.favorited ? 'active star' : ''}}">{{post.favoriteCount}}</text>
+      </view>
+      <button class="share-btn" open-type="share">
+        <image src="/assets/icons/share.png" class="action-icon" />
+      </button>
+      <view class="action-icon-wrap" bindtap="onMore">
+        <image src="/assets/icons/more.png" class="action-icon" />
+      </view>
+    </view>
+
+    <view wx:if="{{focus}}" class="comment-composer">
+      <view wx:if="{{replyTarget}}" class="reply-banner">
+        <text>回复 @{{replyTarget.nickname}}</text>
+        <text class="reply-cancel" bindtap="onCancelReply">取消</text>
+      </view>
+      <view class="composer-row">
+        <view class="anon-switch">
+          <switch checked="{{anonymity}}" color="#b64a3a" bindchange="onAnonChange" />
+          <text>匿名</text>
+        </view>
+        <textarea
+          class="composer-input"
+          value="{{commentText}}"
+          placeholder="说点什么..."
+          maxlength="200"
+          auto-height
+          focus="{{focus}}"
+          bindinput="onInput"
+          adjust-position
+          cursor-spacing="18"
+        />
+        <button class="send-btn {{commentText ? 'ready' : ''}}" bindtap="onSend" loading="{{sending}}">发送</button>
+      </view>
+    </view>
+  </block>
+</view>

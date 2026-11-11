@@ -1,0 +1,11 @@
+<view class="sk-card">
+  <view class="skeleton sk-cover"></view>
+  <view class="sk-body">
+    <view class="skeleton sk-line sk-line-1"></view>
+    <view class="skeleton sk-line sk-line-2"></view>
+    <view class="sk-meta">
+      <view class="skeleton sk-avatar"></view>
+      <view class="skeleton sk-name"></view>
+    </view>
+  </view>
+</view>

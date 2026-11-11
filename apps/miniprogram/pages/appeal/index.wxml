@@ -1,0 +1,29 @@
+<view class="appeal-page safe-page page-wrap">
+  <view class="page-head">
+    <view class="kicker">APPEAL / 再听一次</view>
+    <view class="title serif">申诉</view>
+    <view class="sub">由没有参与原审核的人复核；请尽量说清楚事实。</view>
+  </view>
+
+  <view class="case-card card">
+    <view class="case-label">处理结果</view>
+    <view class="case-status">内容未通过</view>
+    <view class="case-reason">原因：涉嫌曝光他人隐私</view>
+    <view class="case-tip">如果这是误判，请在下方说明；不要重复发布同一内容。</view>
+  </view>
+
+  <view class="field">
+    <text class="field-label">申诉理由</text>
+    <textarea
+      class="textarea"
+      value="{{reason}}"
+      placeholder="例如：这张图是公开活动合影，已获得本人同意；或：联系方式是我自己的，不是他人隐私。"
+      maxlength="800"
+      bindinput="onInput"
+    />
+  </view>
+
+  <view class="appeal-note">申诉不是“重发一次”；同一内容反复申诉会被记录。</view>
+
+  <button class="btn-primary" bindtap="submit" loading="{{submitting}}" disabled="{{submitting}}">提交申诉</button>
+</view>

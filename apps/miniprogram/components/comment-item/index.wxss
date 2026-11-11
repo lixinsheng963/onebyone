@@ -1,0 +1,123 @@
+.comment {
+  padding: 24rpx 0;
+  border-bottom: 1rpx solid #f0ebe1;
+}
+
+.comment-main {
+  display: flex;
+  align-items: flex-start;
+}
+
+.avatar {
+  width: 52rpx;
+  height: 52rpx;
+  border-radius: 50%;
+  background: #f3e4df;
+  color: #9c3d32;
+  font-family: "Songti SC", "SimSun", serif;
+  font-size: 22rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  margin-right: 14rpx;
+}
+
+.comment-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.author-row {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+}
+
+.comment-author {
+  font-size: 23rpx;
+  color: #4b554f;
+}
+
+.official {
+  padding: 1rpx 7rpx;
+  border-radius: 5rpx;
+  color: #245b9e;
+  background: #e8eff8;
+  font-size: 17rpx;
+}
+
+.comment-time {
+  margin-left: auto;
+  color: #9b9f99;
+  font-size: 20rpx;
+}
+
+.comment-text {
+  margin-top: 9rpx;
+  color: #1f2328;
+  font-size: 28rpx;
+  line-height: 1.68;
+}
+
+.comment-actions {
+  display: flex;
+  gap: 28rpx;
+  margin-top: 10rpx;
+  color: #9b9f99;
+  font-size: 21rpx;
+}
+
+.replies {
+  margin-top: 16rpx;
+  padding: 12rpx 16rpx 2rpx;
+  background: #faf6ee;
+  border-radius: 14rpx;
+}
+
+.reply {
+  display: flex;
+  padding: 8rpx 0 12rpx;
+}
+
+.reply-avatar {
+  width: 38rpx;
+  height: 38rpx;
+  border-radius: 50%;
+  background: #e9eee6;
+  color: #4d6b56;
+  font-size: 17rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  margin-right: 10rpx;
+}
+
+.reply-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.reply-head {
+  display: flex;
+  align-items: center;
+  gap: 7rpx;
+}
+
+.reply-author {
+  font-size: 22rpx;
+  color: #4b554f;
+}
+
+.reply-to {
+  color: #9b9f99;
+  font-size: 20rpx;
+}
+
+.reply-text {
+  margin-top: 6rpx;
+  color: #1f2328;
+  font-size: 26rpx;
+  line-height: 1.6;
+}

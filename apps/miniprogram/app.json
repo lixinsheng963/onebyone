@@ -1,0 +1,53 @@
+{
+  "pages": [
+    "pages/home/index",
+    "pages/post/detail",
+    "pages/publish/index",
+    "pages/auth/index",
+    "pages/me/index",
+    "pages/me/list",
+    "pages/notifications/index",
+    "pages/notice/detail",
+    "pages/report/index",
+    "pages/appeal/index",
+    "pages/settings/index",
+    "pages/guidelines/index"
+  ],
+  "window": {
+    "navigationBarBackgroundColor": "#f7f5f0",
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "校园日常",
+    "backgroundColor": "#f7f5f0",
+    "backgroundTextStyle": "dark",
+    "enablePullDownRefresh": false
+  },
+  "tabBar": {
+    "color": "#7d857f",
+    "selectedColor": "#b64a3a",
+    "backgroundColor": "#fffdf8",
+    "borderStyle": "white",
+    "list": [
+      {
+        "pagePath": "pages/home/index",
+        "text": "首页",
+        "iconPath": "assets/icons/home.png",
+        "selectedIconPath": "assets/icons/home-active.png"
+      },
+      {
+        "pagePath": "pages/publish/index",
+        "text": "发布",
+        "iconPath": "assets/icons/plus.png",
+        "selectedIconPath": "assets/icons/plus-active.png"
+      },
+      {
+        "pagePath": "pages/me/index",
+        "text": "我的",
+        "iconPath": "assets/icons/me.png",
+        "selectedIconPath": "assets/icons/me-active.png"
+      }
+    ]
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json",
+  "lazyCodeLoading": "requiredComponents"
+}

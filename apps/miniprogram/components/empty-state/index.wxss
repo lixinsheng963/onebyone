@@ -1,0 +1,72 @@
+.empty {
+  padding: 80rpx 40rpx 66rpx;
+  text-align: center;
+}
+
+.empty-art {
+  position: relative;
+  width: 280rpx;
+  height: 180rpx;
+  margin: 0 auto 28rpx;
+  overflow: hidden;
+}
+
+.sun {
+  position: absolute;
+  top: 8rpx;
+  right: 42rpx;
+  width: 78rpx;
+  height: 78rpx;
+  border-radius: 50%;
+  background: #f1c28e;
+  opacity: 0.85;
+}
+
+.hill {
+  position: absolute;
+  bottom: 0;
+  width: 220rpx;
+  height: 100rpx;
+  border-radius: 50% 50% 0 0;
+  background: #d8dfd2;
+}
+
+.hill-a {
+  left: 0;
+  transform: rotate(-6deg);
+}
+
+.hill-b {
+  right: -30rpx;
+  bottom: -10rpx;
+  background: #c1cdbf;
+  transform: rotate(8deg);
+}
+
+.paper-line {
+  position: absolute;
+  left: 30rpx;
+  bottom: 24rpx;
+  width: 220rpx;
+  height: 1rpx;
+  background: #a9b6a4;
+  opacity: 0.55;
+}
+
+.empty-title {
+  font-family: "Songti SC", "SimSun", serif;
+  font-size: 34rpx;
+  color: #1f2328;
+}
+
+.empty-sub {
+  margin-top: 12rpx;
+  color: #7d857f;
+  font-size: 24rpx;
+  line-height: 1.7;
+}
+
+.empty-action {
+  margin: 30rpx auto 0;
+  display: inline-flex;
+}

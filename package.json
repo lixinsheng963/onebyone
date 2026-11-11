@@ -1,0 +1,14 @@
+{
+  "name": "campus-daily",
+  "version": "0.1.0",
+  "private": true,
+  "description": "校园日常分享小程序（单校版）",
+  "packageManager": "pnpm@11.28.5",
+  "scripts": {
+    "dev:api": "pnpm --filter @campus/api dev",
+    "dev:admin": "pnpm --filter @campus/admin dev",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "clean": "pnpm -r clean"
+  }
+}

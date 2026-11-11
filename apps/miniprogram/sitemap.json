@@ -1,0 +1,4 @@
+{
+  "desc": "校园日常分享小程序 sitemap",
+  "rules": [{ "action": "allow", "page": "*" }]
+}

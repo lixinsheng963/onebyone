@@ -1,0 +1,11 @@
+<view class="empty">
+  <view class="empty-art">
+    <view class="sun"></view>
+    <view class="hill hill-a"></view>
+    <view class="hill hill-b"></view>
+    <view class="paper-line"></view>
+  </view>
+  <view class="empty-title">{{title}}</view>
+  <view class="empty-sub">{{sub}}</view>
+  <button wx:if="{{actionText}}" class="btn-ghost empty-action" bindtap="onAction">{{actionText}}</button>
+</view>

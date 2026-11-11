@@ -1,0 +1,128 @@
+.list-page {
+  padding-top: 30rpx;
+  padding-bottom: 50rpx;
+}
+
+.list-head {
+  padding: 8rpx 0 26rpx;
+}
+
+.list-kicker {
+  color: #b64a3a;
+  font-size: 18rpx;
+  letter-spacing: 0.16em;
+  font-weight: 600;
+}
+
+.list-title {
+  margin-top: 8rpx;
+  font-size: 48rpx;
+  line-height: 1.25;
+}
+
+.loading {
+  padding: 20rpx 0;
+}
+
+.loading-line {
+  height: 32rpx;
+  margin-bottom: 18rpx;
+}
+
+.loading-line.short {
+  width: 58%;
+}
+
+.post-row,
+.comment-row {
+  margin-bottom: 18rpx;
+  padding: 22rpx;
+}
+
+.post-row-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.row-badges {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+}
+
+.pinned-badge {
+  padding: 3rpx 9rpx;
+  border-radius: 6rpx;
+  color: #9c3d32;
+  background: #f3e4df;
+  font-size: 19rpx;
+  font-weight: 600;
+}
+
+.status {
+  padding: 3rpx 9rpx;
+  border-radius: 6rpx;
+  font-size: 19rpx;
+}
+
+.status.pending { color: #8b5716; background: #f8ead9; }
+.status.rejected { color: #9c3d32; background: #f3e4df; }
+.status.published { color: #32664d; background: #e7f1ea; }
+
+.row-time {
+  color: #9b9f99;
+  font-size: 20rpx;
+}
+
+.post-row-text {
+  margin-top: 12rpx;
+  font-size: 28rpx;
+  line-height: 1.6;
+}
+
+.post-row-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 10rpx;
+  color: #9b9f99;
+  font-size: 20rpx;
+  gap: 7rpx;
+}
+
+.row-count {
+  margin-left: auto;
+}
+
+.post-row-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 24rpx;
+  margin-top: 14rpx;
+  padding-top: 12rpx;
+  border-top: 1rpx solid #f0ebe1;
+  color: #7d857f;
+  font-size: 21rpx;
+}
+
+.post-row-actions .danger {
+  color: #b64a3a;
+}
+
+.comment-row-text {
+  font-size: 28rpx;
+  line-height: 1.7;
+}
+
+.comment-row-meta {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 12rpx;
+  color: #9b9f99;
+  font-size: 20rpx;
+}
+
+.empty-wrap {
+  margin-top: 20rpx;
+}

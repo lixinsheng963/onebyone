@@ -1,0 +1,53 @@
+<view class="post-card press" bindtap="onOpen">
+  <view wx:if="{{post.rank}}" class="rank">0{{post.rank}}</view>
+
+  <view wx:if="{{post.media.length === 1}}" class="media media-one">
+    <image src="{{post.media[0].url}}" mode="aspectFill" lazy-load />
+  </view>
+
+  <view wx:elif="{{post.media.length === 2}}" class="media media-two">
+    <image wx:for="{{post.media}}" wx:key="url" src="{{item.url}}" mode="aspectFill" lazy-load />
+  </view>
+
+  <view wx:elif="{{post.media.length > 2}}" class="media media-grid">
+    <block wx:for="{{post.media}}" wx:key="url">
+      <image wx:if="{{index < 9}}" src="{{item.url}}" mode="aspectFill" lazy-load />
+    </block>
+  </view>
+
+  <view class="body">
+    <view wx:if="{{post.featured}}" class="featured">今日精选</view>
+    <view class="text line-2">{{post.text}}</view>
+
+    <view class="meta">
+      <text wx:if="{{post.topic}}" class="topic">#{{post.topic}}</text>
+      <text wx:if="{{post.location}}" class="dot">·</text>
+      <text wx:if="{{post.location}}" class="location">{{post.location}}</text>
+    </view>
+
+    <view class="author">
+      <view class="avatar">{{post.author.initial || '同'}}</view>
+      <text class="name">{{post.author.isAnonymous ? post.author.alias : post.author.nickname}}</text>
+      <text wx:if="{{post.author.isOfficial}}" class="official">官方</text>
+      <text class="time">{{post.timeText}}</text>
+    </view>
+
+    <view class="actions">
+      <view class="action" catchtap="onLike">
+        <image class="action-icon" src="{{post.liked ? '/assets/icons/heart-active.png' : '/assets/icons/heart.png'}}" />
+        <text class="{{post.liked ? 'active' : ''}}">{{post.likeCount}}</text>
+      </view>
+      <view class="action" catchtap="onComment">
+        <image class="action-icon" src="/assets/icons/comment.png" />
+        <text>{{post.commentCount}}</text>
+      </view>
+      <view class="action" catchtap="onFavorite">
+        <image class="action-icon" src="{{post.favorited ? '/assets/icons/star-active.png' : '/assets/icons/star.png'}}" />
+        <text class="{{post.favorited ? 'star-active' : ''}}">{{post.favoriteCount}}</text>
+      </view>
+      <view class="action more" catchtap="onMore">
+        <image class="action-icon" src="/assets/icons/more.png" />
+      </view>
+    </view>
+  </view>
+</view>

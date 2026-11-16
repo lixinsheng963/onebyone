@@ -20,15 +20,16 @@ Page({
 
   async loadStats() {
     try {
-      const [posts, comments, favorites] = await Promise.all([
+      const [posts, threads, favorites] = await Promise.all([
         api.getMyPosts(),
-        api.getMyComments(),
+        api.getMyCommentThreads(),
         api.getFavorites()
       ]);
+      const relatedComments = (threads || []).reduce((sum, thread) => sum + (thread.comments || []).length, 0);
       this.setData({
         stats: {
           posts: (posts || []).filter((item) => item.status === 'published').length,
-          comments: (comments || []).length,
+          comments: relatedComments,
           favorites: (favorites || []).length
         },
         pending: (posts || []).filter((item) => item.status === 'pending').length

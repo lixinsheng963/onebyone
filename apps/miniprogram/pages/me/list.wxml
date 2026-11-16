@@ -1,3 +1,4 @@
+<wxs module="fmt" src="../../utils/format.wxs" />
 <view class="list-page safe-page page-wrap">
   <view class="list-head">
     <view class="list-kicker">MY CAMPUS / {{type}}</view>
@@ -26,40 +27,92 @@
       post="{{item}}"
       bind:open="onOpen"
       bind:like="onCardLike"
+      bind:comment="onCardComment"
       bind:favorite="onCardFavorite"
       bind:more="onCardMore"
     />
   </block>
 
   <block wx:elif="{{type === 'posts'}}">
-    <view wx:for="{{items}}" wx:key="id" class="post-row card press" data-id="{{item.id}}" bindtap="onOpen">
-      <view class="post-row-top">
+    <view wx:for="{{items}}" wx:key="id" class="moment-card card press" data-id="{{item.id}}" bindtap="onOpen">
+      <view class="moment-head">
         <view class="row-badges">
           <text class="status {{item.status}}">{{item.statusText}}</text>
           <text wx:if="{{item.pinnedAt}}" class="pinned-badge">置顶</text>
         </view>
-        <text class="row-time">{{item.timeText}}</text>
+        <text class="moment-date">{{item.dateText}}</text>
       </view>
-      <view class="post-row-text line-2">{{item.text}}</view>
-      <view class="post-row-meta">
+
+      <view class="moment-text">{{item.text}}</view>
+
+      <view wx:if="{{item.media.length}}" class="moment-media {{item.media.length === 1 ? 'single' : item.media.length === 2 ? 'two' : 'grid'}}">
+        <image
+          wx:for="{{item.media}}"
+          wx:for-item="photo"
+          wx:key="id"
+          src="{{photo.url}}"
+          mode="aspectFill"
+          lazy-load
+        />
+      </view>
+
+      <view class="moment-meta">
         <text wx:if="{{item.topic}}">#{{item.topic}}</text>
         <text wx:if="{{item.location}}">· {{item.location}}</text>
-        <text class="row-count">♡ {{item.likeCount || 0}}　💬 {{item.commentCount || 0}}</text>
+        <text class="row-count">♡ {{fmt.count(item.likeCount)}}　💬 {{fmt.count(item.commentCount)}}</text>
       </view>
-      <view class="post-row-actions">
-        <text catchtap="togglePin" data-id="{{item.id}}">{{item.pinnedAt ? '取消置顶' : '置顶'}}</text>
-        <text class="danger" catchtap="deletePost" data-id="{{item.id}}">删除</text>
+
+      <view class="moment-foot">
+        <text class="moment-relative">{{item.timeText}}</text>
+        <view class="moment-actions">
+          <text catchtap="togglePin" data-id="{{item.id}}">{{item.pinnedAt ? '取消置顶' : '置顶'}}</text>
+          <text class="danger" catchtap="deletePost" data-id="{{item.id}}">删除</text>
+        </view>
       </view>
     </view>
   </block>
 
   <block wx:else>
-    <view wx:for="{{items}}" wx:key="id" class="comment-row card press" data-id="{{item.postId}}" bindtap="onOpen">
-      <view class="comment-row-text">{{item.text}}</view>
-      <view class="comment-row-meta">
-        <text>来自帖子 {{item.postId}}</text>
-        <text>{{item.timeText}}</text>
+    <view
+      wx:for="{{items}}"
+      wx:key="threadId"
+      class="thread-card card press"
+      data-postid="{{item.post.publicId}}"
+      bindtap="onOpen"
+    >
+      <view class="thread-head">
+        <view class="thread-post-copy">
+          <view class="thread-label">{{item.label}}</view>
+          <view class="thread-post-text">{{item.post.excerpt}}</view>
+          <view class="thread-post-meta">
+            <text wx:if="{{item.post.topic}}">#{{item.post.topic}}</text>
+            <text>{{item.post.authorNickname}}</text>
+            <text>{{item.post.isMine ? '我发布的' : '来自分享'}}</text>
+          </view>
+        </view>
+        <image wx:if="{{item.post.cover}}" class="thread-cover" src="{{item.post.cover}}" mode="aspectFill" lazy-load />
       </view>
+
+      <view class="thread-list">
+        <view
+          wx:for="{{item.comments}}"
+          wx:for-item="comment"
+          wx:key="id"
+          class="thread-comment {{comment.context ? 'context' : ''}}"
+        >
+          <view class="thread-avatar">{{comment.authorInitial}}</view>
+          <view class="thread-body">
+            <view class="thread-name-line">
+              <text class="thread-name">{{comment.authorName}}</text>
+              <text class="thread-role {{comment.mine ? 'mine' : comment.replyToMe ? 'incoming' : ''}}">{{comment.roleText}}</text>
+              <text class="thread-time">{{comment.timeText}}</text>
+            </view>
+            <view class="thread-text">{{comment.text}}</view>
+          </view>
+        </view>
+      </view>
+
+      <view class="thread-open">查看原帖 <text>›</text></view>
     </view>
   </block>
 </view>

@@ -1,4 +1,4 @@
-import type { HotItem, ModerationCase, Notice, OfficialAccount, RankingConfig, Report } from './types';
+import type { AuditLog, HotItem, InviteCode, ModerationCase, Notice, OfficialAccount, RankingConfig, Report } from './types';
 
 const BASE = import.meta.env.VITE_API_BASE || '/api/v1';
 const TOKEN_KEY = 'campus_admin_token';
@@ -151,21 +151,23 @@ export async function getNotices(): Promise<Notice[]> {
 }
 
 export async function createNotice(input: { title: string; body: string; type: 'normal' | 'emergency'; source: string; effectiveTo: string }) {
-  const effectiveTo = new Date(Date.now() + 24 * 3600_000).toISOString();
   return request('/admin/notices', {
     method: 'POST',
-    body: JSON.stringify({ ...input, effectiveTo })
+    body: JSON.stringify(input)
   });
 }
 
 function mapReport(item: any): Report {
   return {
     id: item.id,
-    target: item.targetId,
+    target: item.target || { type: item.targetType, id: item.targetId, exists: false },
     targetType: item.targetType === 'post' ? '帖子' : item.targetType === 'comment' ? '评论' : '账号',
     reason: item.reason || item.reasonCode || '其他',
-    reporter: item.reporterId || '匿名',
+    detail: item.detail,
+    reporter: item.reporterName || item.reporterId || '匿名',
     status: item.status,
+    ai: item.ai,
+    handledAt: item.handledAt ? clock(item.handledAt) : undefined,
     createdAt: clock(item.createdAt)
   };
 }
@@ -175,11 +177,15 @@ export async function getReports(): Promise<Report[]> {
   return data.map(mapReport);
 }
 
+export async function getReport(id: string): Promise<Report> {
+  return mapReport(await request<any>(`/admin/reports/${id}`));
+}
+
 export async function resolveReport(id: string, status: 'resolved' | 'rejected') {
-  return request(`/admin/reports/${id}/decision`, {
+  return mapReport(await request<any>(`/admin/reports/${id}/decision`, {
     method: 'POST',
     body: JSON.stringify({ status })
-  });
+  }));
 }
 
 export async function getRanking(): Promise<RankingConfig> {
@@ -191,4 +197,23 @@ export async function saveRanking(config: RankingConfig) {
     method: 'PUT',
     body: JSON.stringify(config)
   });
+}
+
+export async function getInviteCodes(): Promise<InviteCode[]> {
+  return request<InviteCode[]>('/admin/invite-codes');
+}
+
+export async function createInviteCode(input: { name?: string; code?: string; maxUses: number; expiresAt?: string }) {
+  return request<{ id: number; code: string; name: string; maxUses: number; expiresAt: string }>('/admin/invite-codes', {
+    method: 'POST',
+    body: JSON.stringify(input)
+  });
+}
+
+export async function revokeInviteCode(id: number) {
+  return request(`/admin/invite-codes/${id}/revoke`, { method: 'POST' });
+}
+
+export async function getAuditLogs(limit = 100): Promise<AuditLog[]> {
+  return request<AuditLog[]>(`/admin/audit-logs?limit=${limit}`);
 }

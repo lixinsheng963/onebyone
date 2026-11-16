@@ -1,19 +1,23 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { ref } from 'vue';
 import { ElMessage } from 'element-plus';
 import { getOfficialAccounts, reviewOfficial } from '../api';
+import { useLivePoll } from '../composables/useLivePoll';
 import type { OfficialAccount } from '../types';
 
 const items = ref<OfficialAccount[]>([]);
 const error = ref('');
 
-onMounted(async () => {
+async function load() {
   try {
     items.value = await getOfficialAccounts();
+    error.value = '';
   } catch (e) {
     error.value = (e as Error).message;
   }
-});
+}
+
+useLivePoll(load, 3000);
 
 function statusLabel(status: OfficialAccount['status']) {
   return {
@@ -38,6 +42,7 @@ async function approve(item: OfficialAccount) {
     await reviewOfficial(item.id, 'active');
     item.status = 'active';
     ElMessage.success(`${item.orgName} 已通过，权限已生效`);
+    await load();
   } catch (e) {
     ElMessage.error((e as Error).message);
   }

@@ -33,31 +33,10 @@
   width: 58%;
 }
 
-.post-row,
-.comment-row {
-  margin-bottom: 18rpx;
-  padding: 22rpx;
-}
-
-.post-row-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
 .row-badges {
   display: flex;
   align-items: center;
   gap: 8rpx;
-}
-
-.pinned-badge {
-  padding: 3rpx 9rpx;
-  border-radius: 6rpx;
-  color: #9c3d32;
-  background: #f3e4df;
-  font-size: 19rpx;
-  font-weight: 600;
 }
 
 .status {
@@ -70,57 +49,248 @@
 .status.rejected { color: #9c3d32; background: #f3e4df; }
 .status.published { color: #32664d; background: #e7f1ea; }
 
-.row-time {
+.pinned-badge {
+  padding: 3rpx 9rpx;
+  border-radius: 6rpx;
+  color: #9c3d32;
+  background: #f3e4df;
+  font-size: 19rpx;
+  font-weight: 600;
+}
+
+.moment-card {
+  margin-bottom: 20rpx;
+  padding: 24rpx;
+}
+
+.moment-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.moment-date {
   color: #9b9f99;
-  font-size: 20rpx;
+  font-size: 19rpx;
+  letter-spacing: 0.02em;
 }
 
-.post-row-text {
-  margin-top: 12rpx;
-  font-size: 28rpx;
-  line-height: 1.6;
+.moment-text {
+  margin-top: 15rpx;
+  color: #1f2328;
+  font-size: 29rpx;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
-.post-row-meta {
+.moment-media {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4rpx;
+  margin-top: 16rpx;
+  overflow: hidden;
+  border-radius: 16rpx;
+  background: #e9e2d5;
+}
+
+.moment-media image {
+  display: block;
+  width: calc((100% - 8rpx) / 3);
+  height: 204rpx;
+}
+
+.moment-media.single image {
+  width: 100%;
+  height: 420rpx;
+}
+
+.moment-media.two image {
+  width: calc(50% - 2rpx);
+  height: 300rpx;
+}
+
+.moment-meta {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  margin-top: 10rpx;
+  gap: 7rpx;
+  margin-top: 11rpx;
   color: #9b9f99;
   font-size: 20rpx;
-  gap: 7rpx;
+}
+
+.moment-meta text:first-child {
+  color: #9c3d32;
 }
 
 .row-count {
   margin-left: auto;
 }
 
-.post-row-actions {
+.moment-foot {
   display: flex;
-  justify-content: flex-end;
-  gap: 24rpx;
-  margin-top: 14rpx;
-  padding-top: 12rpx;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 15rpx;
+  padding-top: 13rpx;
   border-top: 1rpx solid #f0ebe1;
+}
+
+.moment-relative {
+  color: #b0b2ac;
+  font-size: 19rpx;
+}
+
+.moment-actions {
+  display: flex;
+  gap: 26rpx;
   color: #7d857f;
   font-size: 21rpx;
 }
 
-.post-row-actions .danger {
+.moment-actions .danger {
   color: #b64a3a;
 }
 
-.comment-row-text {
-  font-size: 28rpx;
-  line-height: 1.7;
+.thread-card {
+  margin-bottom: 20rpx;
+  padding: 24rpx;
 }
 
-.comment-row-meta {
+.thread-head {
   display: flex;
-  justify-content: space-between;
-  margin-top: 12rpx;
+  align-items: flex-start;
+  gap: 18rpx;
+}
+
+.thread-post-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.thread-label {
+  color: #b64a3a;
+  font-size: 19rpx;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+.thread-post-text {
+  margin-top: 8rpx;
+  color: #3e4942;
+  font-size: 24rpx;
+  line-height: 1.6;
+  word-break: break-word;
+}
+
+.thread-post-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9rpx;
+  margin-top: 9rpx;
   color: #9b9f99;
+  font-size: 19rpx;
+}
+
+.thread-cover {
+  width: 124rpx;
+  height: 124rpx;
+  flex: none;
+  border-radius: 13rpx;
+  background: #e9e2d5;
+}
+
+.thread-list {
+  margin-top: 15rpx;
+  border-top: 1rpx solid #f0ebe1;
+}
+
+.thread-comment {
+  display: flex;
+  align-items: flex-start;
+  gap: 13rpx;
+  padding: 17rpx 0 0;
+}
+
+.thread-comment + .thread-comment {
+  margin-top: 12rpx;
+  border-top: 1rpx solid #f6f2e9;
+}
+
+.thread-comment.context {
+  opacity: 0.72;
+}
+
+.thread-avatar {
+  width: 50rpx;
+  height: 50rpx;
+  flex: none;
+  border-radius: 50%;
+  background: #f3e4df;
+  color: #9c3d32;
+  font-family: "Songti SC", "SimSun", serif;
+  font-size: 21rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.thread-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.thread-name-line {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+}
+
+.thread-name {
+  max-width: 220rpx;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: #4b554f;
+  font-size: 21rpx;
+}
+
+.thread-role {
+  color: #9b9f99;
+  font-size: 18rpx;
+}
+
+.thread-role.mine {
+  color: #9c3d32;
+}
+
+.thread-role.incoming {
+  color: #32664d;
+}
+
+.thread-time {
+  margin-left: auto;
+  flex: none;
+  color: #b0b2ac;
+  font-size: 18rpx;
+}
+
+.thread-text {
+  margin-top: 7rpx;
+  color: #1f2328;
+  font-size: 26rpx;
+  line-height: 1.65;
+  word-break: break-word;
+}
+
+.thread-open {
+  margin-top: 16rpx;
+  padding-top: 13rpx;
+  border-top: 1rpx solid #f0ebe1;
+  color: #b64a3a;
   font-size: 20rpx;
+  text-align: right;
 }
 
 .empty-wrap {

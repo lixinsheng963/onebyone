@@ -40,12 +40,16 @@ Page({
   },
 
   async redeem() {
-    if (!this.data.code.trim()) {
-      return this.setData({ error: '请输入邀请码' });
+    const code = this.data.code.trim().toUpperCase();
+    if (!code) {
+      return this.setData({ error: '请输入管理员发放的邀请码' });
+    }
+    if (!/^[A-Z0-9-]{4,32}$/.test(code)) {
+      return this.setData({ error: '邀请码格式不正确，请检查后重试' });
     }
     this.setData({ redeeming: true, error: '' });
     try {
-      const result = await api.redeem(this.data.code);
+      const result = await api.redeem(code);
       if (!result.ok) {
         this.setData({ redeeming: false, error: result.message || '邀请码无效' });
         return;

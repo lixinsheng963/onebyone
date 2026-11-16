@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, ref } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { decideCase, getQueue } from '../api';
+import { useLivePoll } from '../composables/useLivePoll';
 import type { ModerationCase, Risk } from '../types';
 
 const items = ref<ModerationCase[]>([]);
@@ -12,20 +13,24 @@ const loading = ref(true);
 const error = ref('');
 const emit = defineEmits<{ changed: [] }>();
 
-onMounted(load);
-
-async function load() {
-  loading.value = true;
-  error.value = '';
+async function load(showSkeleton = false) {
+  if (showSkeleton) loading.value = true;
   try {
-    items.value = await getQueue();
-    selectedId.value = items.value.find((item) => item.status === 'pending')?.id || items.value[0]?.id || '';
+    const next = await getQueue();
+    items.value = next;
+    error.value = '';
+    if (!selectedId.value || !next.some((item) => item.id === selectedId.value)) {
+      selectedId.value = next.find((item) => item.status === 'pending')?.id || next[0]?.id || '';
+    }
   } catch (e) {
     error.value = (e as Error).message;
+    if (!items.value.length) loading.value = false;
   } finally {
     loading.value = false;
   }
 }
+
+useLivePoll(() => load(false), 1000);
 
 const risks: Array<{ key: 'all' | Risk; label: string }> = [
   { key: 'all', label: '全部' },
@@ -61,7 +66,7 @@ async function decide(decision: 'approved' | 'rejected') {
     await decideCase(selected.value.id, decision, note.value.trim());
     ElMessage.success(decision === 'approved' ? '已通过，内容进入信息流' : '已拒绝，已通知作者');
     emit('changed');
-    await load();
+    await load(false);
   } catch (e) {
     ElMessage.error((e as Error).message);
   }

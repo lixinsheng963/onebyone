@@ -1,3 +1,4 @@
+<wxs module="fmt" src="../../utils/format.wxs" />
 <view class="detail safe-page">
   <view wx:if="{{loading}}" class="page-wrap detail-loading">
     <view class="skeleton loading-cover"></view>
@@ -57,7 +58,7 @@
       </view>
 
       <view class="comments-head">
-        <view class="comments-title serif">评论 <text>{{post.commentCount}}</text></view>
+        <view class="comments-title serif">评论 <text>{{fmt.count(post.commentCount)}}</text></view>
         <view class="comments-sort">最新</view>
       </view>
 
@@ -83,11 +84,11 @@
       </view>
       <view class="action-icon-wrap" bindtap="onLike">
         <image src="{{post.liked ? '/assets/icons/heart-active.png' : '/assets/icons/heart.png'}}" class="action-icon" />
-        <text class="{{post.liked ? 'active' : ''}}">{{post.likeCount}}</text>
+        <text class="{{post.liked ? 'active' : ''}}">{{fmt.count(post.likeCount)}}</text>
       </view>
       <view class="action-icon-wrap" bindtap="onFavorite">
         <image src="{{post.favorited ? '/assets/icons/star-active.png' : '/assets/icons/star.png'}}" class="action-icon" />
-        <text class="{{post.favorited ? 'active star' : ''}}">{{post.favoriteCount}}</text>
+        <text class="{{post.favorited ? 'active star' : ''}}">{{fmt.count(post.favoriteCount)}}</text>
       </view>
       <button class="share-btn" open-type="share">
         <image src="/assets/icons/share.png" class="action-icon" />

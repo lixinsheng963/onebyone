@@ -23,6 +23,14 @@ function formatClock(value) {
   return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
 }
 
+function formatDateTime(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${date.getFullYear()}.${month}.${day} ${formatClock(value)}`;
+}
+
 function compactNumber(value) {
   if (!value) return '0';
   if (value >= 10000) return `${(value / 10000).toFixed(1)}w`;
@@ -33,4 +41,4 @@ function initial(name) {
   return (name || '同').slice(0, 1);
 }
 
-module.exports = { timeAgo, formatDate, formatClock, compactNumber, initial };
+module.exports = { timeAgo, formatDate, formatClock, formatDateTime, compactNumber, initial };

@@ -41,13 +41,40 @@ export interface OfficialAccount {
   authorization: string;
 }
 
+export interface ReportAi {
+  decision: 'reject' | 'uphold' | 'needs_human';
+  reason: string;
+  evidence: string[];
+  confidence: number;
+  checkedAt: string;
+}
+
+export interface ReportTarget {
+  type: 'post' | 'comment' | 'user';
+  id: string;
+  exists: boolean;
+  status?: string;
+  text?: string;
+  authorName?: string;
+  authorId?: string;
+  media?: string[];
+  postId?: string;
+  postText?: string;
+  nickname?: string;
+  avatar?: string;
+  createdAt?: string;
+}
+
 export interface Report {
   id: string;
-  target: string;
+  target: ReportTarget;
   targetType: '帖子' | '评论' | '账号';
   reason: string;
+  detail?: string;
   reporter: string;
   status: 'pending' | 'resolved' | 'rejected';
+  ai?: ReportAi;
+  handledAt?: string;
   createdAt: string;
 }
 
@@ -59,6 +86,34 @@ export interface HotItem {
   likes: number;
   comments: number;
   cover: string;
+}
+
+export interface InviteCode {
+  id: number;
+  code: string | null;
+  name: string;
+  issuerId: number;
+  source: string;
+  maxUses: number;
+  usedCount: number;
+  expiresAt: string;
+  status: 'active' | 'used' | 'revoked' | 'expired';
+  createdAt: string;
+}
+
+export interface AuditLog {
+  id: number;
+  actorId: number;
+  actorType: string;
+  actorRole: string;
+  action: string;
+  targetType?: string;
+  targetId?: number;
+  before?: unknown;
+  after?: unknown;
+  requestId?: string;
+  ipHash?: string;
+  createdAt: string;
 }
 
 export interface RankingConfig {

@@ -1,0 +1,7 @@
+function count(value) {
+  var number = parseInt(value, 10);
+  if (!number || number < 0) number = 0;
+  return number > 99 ? '99+' : number;
+}
+
+module.exports = { count: count };

@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, ref } from 'vue';
 import { ElMessage } from 'element-plus';
 import { createNotice, getNotices } from '../api';
+import { useLivePoll } from '../composables/useLivePoll';
 import type { Notice } from '../types';
 
 const items = ref<Notice[]>([]);
@@ -9,23 +10,31 @@ const active = ref<Notice | null>(null);
 const showForm = ref(false);
 const error = ref('');
 
-onMounted(load);
-
 async function load() {
   try {
     items.value = await getNotices();
-    active.value = items.value[0] ?? null;
+    if (active.value) {
+      active.value = items.value.find((item) => item.id === active.value?.id) ?? items.value[0] ?? null;
+    } else {
+      active.value = items.value[0] ?? null;
+    }
   } catch (e) {
     error.value = (e as Error).message;
   }
 }
-const form = ref({
-  title: '',
-  body: '',
-  type: 'normal' as Notice['type'],
-  source: '学校图书馆',
-  effectiveTo: '11-08 12:00'
-});
+
+useLivePoll(() => (showForm.value ? undefined : load()), 3000);
+
+function emptyForm() {
+  return {
+    title: '',
+    body: '',
+    type: 'normal' as Notice['type'],
+    source: '',
+    effectiveTo: ''
+  };
+}
+const form = ref(emptyForm());
 
 const sorted = computed(() => [...items.value].sort((a, b) => Number(b.type === 'emergency') - Number(a.type === 'emergency')));
 
@@ -39,16 +48,24 @@ async function publish() {
     ElMessage.warning('标题和正文都要填');
     return;
   }
+  if (!form.value.source.trim()) {
+    ElMessage.warning('请填写通知来源');
+    return;
+  }
+  if (!form.value.effectiveTo) {
+    ElMessage.warning('请选择有效期');
+    return;
+  }
   try {
     await createNotice({
       title: form.value.title.trim(),
       body: form.value.body.trim(),
       type: form.value.type,
-      source: form.value.source,
-      effectiveTo: form.value.effectiveTo
+      source: form.value.source.trim(),
+      effectiveTo: new Date(form.value.effectiveTo).toISOString()
     });
     showForm.value = false;
-    form.value = { title: '', body: '', type: 'normal', source: '学校图书馆', effectiveTo: '11-08 12:00' };
+    form.value = emptyForm();
     ElMessage.success('通知已发布');
     await load();
   } catch (e) {
@@ -82,10 +99,10 @@ async function publish() {
         <div class="section-title"><h3>新建通知</h3><button class="btn btn-ghost btn-sm" @click="showForm = false">取消</button></div>
         <div class="form-grid">
           <div class="field"><label>类型</label><select v-model="form.type" class="select"><option value="normal">校方通知</option><option value="emergency">紧急通知（首页顶部）</option></select></div>
-          <div class="field"><label>来源</label><input v-model="form.source" class="input" /></div>
+          <div class="field"><label>来源</label><input v-model="form.source" class="input" placeholder="例如：学校图书馆" /></div>
           <div class="field full"><label>标题</label><input v-model="form.title" class="input" placeholder="例如：东区今晚 22:00 起停水" /></div>
           <div class="field full"><label>正文</label><textarea v-model="form.body" class="textarea" placeholder="写清楚时间、范围、影响和咨询方式。"></textarea></div>
-          <div class="field"><label>有效期至</label><input v-model="form.effectiveTo" class="input" /></div>
+          <div class="field"><label>有效期至</label><el-date-picker v-model="form.effectiveTo" type="datetime" class="date-picker" placeholder="选择日期和时间" value-format="YYYY-MM-DD HH:mm:ss" /></div>
         </div>
         <div class="preview-wrap">
           <div class="hint">发布预览</div>
@@ -136,6 +153,7 @@ async function publish() {
 .notice-row b { display: block; font-size: 12px; }
 .notice-row p { margin: 4px 0 0; color: var(--muted); font-size: 9px; }
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.date-picker { width: 100%; }
 .field.full { grid-column: 1 / -1; }
 .preview-wrap { margin-top: 18px; }
 .preview-wrap .hint { margin-bottom: 7px; }

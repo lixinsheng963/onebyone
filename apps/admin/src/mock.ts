@@ -169,7 +169,7 @@ export const officialAccounts: OfficialAccount[] = [
 export const reports: Report[] = [
   {
     id: 'r_1',
-    target: '出一张校园卡，价格好商量...',
+    target: { type: 'post', id: 'p_mock_1', exists: true, text: '出一张校园卡，价格好商量...', authorName: '小何' },
     targetType: '帖子',
     reason: '广告/兼职/诈骗',
     reporter: '小何',
@@ -178,7 +178,7 @@ export const reports: Report[] = [
   },
   {
     id: 'r_2',
-    target: '大家都来看看这个人...',
+    target: { type: 'post', id: 'p_mock_2', exists: true, text: '大家都来看看这个人...', authorName: '匿名同学' },
     targetType: '帖子',
     reason: '人身攻击/网暴',
     reporter: '匿名同学',
@@ -187,7 +187,7 @@ export const reports: Report[] = [
   },
   {
     id: 'r_3',
-    target: '奶茶店扫码进群',
+    target: { type: 'post', id: 'p_mock_3', exists: true, text: '奶茶店扫码进群', authorName: '林同学' },
     targetType: '帖子',
     reason: '广告/导流',
     reporter: '林同学',

@@ -463,6 +463,42 @@ function getFavorites() {
   return allPosts().filter((p) => p.favorited);
 }
 
+function getMyCommentThreads() {
+  const groups = {};
+  getMyComments().forEach((comment) => {
+    const post = allPosts().find((item) => item.id === comment.postId);
+    if (!post) return;
+    if (!groups[comment.postId]) {
+      groups[comment.postId] = {
+        post: {
+          publicId: post.id,
+          text: post.text,
+          media: post.media || [],
+          topic: post.topic,
+          location: post.location,
+          authorNickname: post.author.nickname,
+          createdAt: post.time,
+          isMine: false
+        },
+        comments: [],
+        label: '你参与过的评论',
+        latestAt: comment.time
+      };
+    }
+    groups[comment.postId].comments.push({
+      id: comment.id,
+      text: comment.text,
+      createdAt: comment.time,
+      author: comment.author,
+      mine: true,
+      replyToMe: false,
+      onMyPost: false,
+      context: false
+    });
+  });
+  return Object.keys(groups).map((key) => groups[key]);
+}
+
 function getTopics() {
   return ['校园光影', '食堂测评', '早八生存', '社团活动', '校猫图鉴', '毕业季'];
 }
@@ -489,6 +525,7 @@ module.exports = {
   markRead,
   getMyPosts,
   getMyComments,
+  getMyCommentThreads,
   getFavorites,
   getTopics,
   heat

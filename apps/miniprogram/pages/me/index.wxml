@@ -1,3 +1,4 @@
+<wxs module="fmt" src="../../utils/format.wxs" />
 <view class="me-page safe-page">
   <view wx:if="{{user}}" class="page-wrap">
     <view class="me-head">
@@ -18,17 +19,17 @@
 
     <view class="stats-card card">
       <view class="stat-item" data-type="posts" bindtap="goList">
-        <text class="stat-num">{{stats.posts}}</text>
+        <text class="stat-num">{{fmt.count(stats.posts)}}</text>
         <text class="stat-label">发布</text>
       </view>
       <view class="stat-rule"></view>
       <view class="stat-item" data-type="comments" bindtap="goList">
-        <text class="stat-num">{{stats.comments}}</text>
+        <text class="stat-num">{{fmt.count(stats.comments)}}</text>
         <text class="stat-label">评论</text>
       </view>
       <view class="stat-rule"></view>
       <view class="stat-item" data-type="favorites" bindtap="goList">
-        <text class="stat-num">{{stats.favorites}}</text>
+        <text class="stat-num">{{fmt.count(stats.favorites)}}</text>
         <text class="stat-label">收藏</text>
       </view>
     </view>

@@ -58,7 +58,7 @@ export class AuthController {
       throw new HttpException('尝试次数过多，请稍后再试', HttpStatus.TOO_MANY_REQUESTS);
     }
     const code = requireText(body?.code, 64, '邀请码');
-    const result = this.store.redeemInvite(code, token);
+    const result = await this.store.redeemInvite(code, token);
     if (!result.ok) await this.loginThrottle.fail(key, 10, 10 * 60 * 1000);
     else await this.loginThrottle.success(key);
     return ok(result);

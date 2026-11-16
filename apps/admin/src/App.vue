@@ -1,14 +1,16 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onErrorCaptured, onMounted, ref, watch } from 'vue';
 import { adminLogin, adminLogout, clearToken, getDashboard, getOfficialAccounts, getReports, hasToken } from './api';
+import AuditLogsView from './views/AuditLogsView.vue';
 import DashboardView from './views/DashboardView.vue';
+import InviteCodesView from './views/InviteCodesView.vue';
 import ModerationView from './views/ModerationView.vue';
 import NoticesView from './views/NoticesView.vue';
 import OfficialView from './views/OfficialView.vue';
 import RankingView from './views/RankingView.vue';
 import ReportsView from './views/ReportsView.vue';
 
-type ViewKey = 'dashboard' | 'moderation' | 'official' | 'notices' | 'reports' | 'ranking';
+type ViewKey = 'dashboard' | 'moderation' | 'official' | 'notices' | 'reports' | 'ranking' | 'invites' | 'audit';
 
 const nav: Array<{ key: ViewKey; label: string; en: string; icon: string }> = [
   { key: 'dashboard', label: '概览', en: 'Overview', icon: '◒' },
@@ -16,22 +18,35 @@ const nav: Array<{ key: ViewKey; label: string; en: string; icon: string }> = [
   { key: 'official', label: '官方账号', en: 'Official', icon: '◈' },
   { key: 'notices', label: '通知', en: 'Notices', icon: '▤' },
   { key: 'reports', label: '举报', en: 'Reports', icon: '⚑' },
-  { key: 'ranking', label: '热度配置', en: 'Ranking', icon: '↗' }
+  { key: 'ranking', label: '热度配置', en: 'Ranking', icon: '↗' },
+  { key: 'invites', label: '邀请码', en: 'Invites', icon: '⌁' },
+  { key: 'audit', label: '审计日志', en: 'Audit', icon: '◫' }
 ];
 
 const active = ref<ViewKey>('dashboard');
+const viewError = ref('');
 const authed = ref(false);
 const loginError = ref('');
 const login = ref({ email: '', password: '', totp: '' });
 const badgeCounts = ref({ moderation: 0, official: 0, reports: 0 });
 let badgeTimer: number | undefined;
-const views = { dashboard: DashboardView, moderation: ModerationView, official: OfficialView, notices: NoticesView, reports: ReportsView, ranking: RankingView };
+const views = { dashboard: DashboardView, moderation: ModerationView, official: OfficialView, notices: NoticesView, reports: ReportsView, ranking: RankingView, invites: InviteCodesView, audit: AuditLogsView };
 const currentView = computed(() => views[active.value]);
 const current = computed(() => nav.find((item) => item.key === active.value)!);
 
 onMounted(() => {
   authed.value = hasToken();
   if (authed.value) startBadgePolling();
+});
+
+onErrorCaptured((error, _instance, info) => {
+  viewError.value = `页面加载异常：${(error as Error)?.message || '未知错误'}`;
+  console.error('Admin view crashed:', info, error);
+  return false;
+});
+
+watch(active, () => {
+  viewError.value = '';
 });
 
 onBeforeUnmount(() => {
@@ -84,6 +99,10 @@ function signOut() {
   authed.value = false;
   if (badgeTimer) window.clearInterval(badgeTimer);
   adminLogout().catch(() => clearToken());
+}
+
+function reloadPage() {
+  window.location.reload();
 }
 </script>
 
@@ -176,8 +195,23 @@ function signOut() {
       </header>
 
       <div class="page">
-        <component :is="currentView" @go="(key: ViewKey) => (active = key)" @changed="refreshBadges" />
+        <div v-if="viewError" class="view-error card">
+          <div class="view-error-mark">!</div>
+          <h2>页面加载异常</h2>
+          <p>{{ viewError }}</p>
+          <p>已保护管理台其他页面；刷新后会重新加载最新版本。</p>
+          <button class="btn btn-primary" @click="reloadPage">刷新页面</button>
+        </div>
+        <component v-else :is="currentView" :key="active" @go="(key: ViewKey) => (active = key)" @changed="refreshBadges" />
       </div>
     </main>
   </div>
 </template>
+
+<style scoped>
+.view-error { max-width: 620px; margin: 10vh auto 0; padding: 32px; text-align: center; }
+.view-error-mark { width: 42px; height: 42px; margin: 0 auto 14px; border-radius: 50%; display: grid; place-items: center; background: #fbe7e5; color: #a52828; font-family: var(--serif); font-size: 24px; }
+.view-error h2 { margin: 0 0 8px; font-family: var(--serif); font-weight: 400; }
+.view-error p { margin: 6px 0; color: var(--muted); font-size: 12px; line-height: 1.75; }
+.view-error .btn { margin-top: 14px; }
+</style>

@@ -32,7 +32,8 @@ MYSQL_PASSWORD="$(rand_hex 16)"
 REDIS_PASSWORD="$(rand_hex 16)"
 ADMIN_PASSWORD="$(rand_hex 16)"
 SESSION_PEPPER="$(rand_hex 48)"
-INVITE_CODE="$(rand_hex 8)"
+# Invite codes are issued from the admin console; do not seed a client-usable master code.
+INVITE_CODE=""
 
 echo "==> 安装基础软件"
 dnf install -y curl ca-certificates git nginx mysql-server redis >/dev/null
@@ -217,7 +218,7 @@ echo "================ 部署完成 ================"
 echo "后台：${BASE_URL}"
 echo "管理邮箱：${ADMIN_EMAIL}"
 echo "管理密码：${ADMIN_PASSWORD}"
-echo "邀请码：${INVITE_CODE}"
+echo "邀请码：请登录管理后台“邀请码”页创建（客户端不再接受默认码）"
 echo "TOTP secret：${TOTP_SECRET}"
 echo "TOTP URI：otpauth://totp/Campus:${ADMIN_EMAIL}?secret=${TOTP_SECRET}&issuer=Campus"
 echo "MySQL：campus / ${MYSQL_PASSWORD}"

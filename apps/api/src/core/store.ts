@@ -1,7 +1,10 @@
 import { createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
 import { verifySync } from 'otplib';
 import type {
+  AdminReport,
   Comment,
+  CommentThread,
+  CommentThreadItem,
   FeedItem,
   Media,
   ModerationCase,
@@ -11,6 +14,8 @@ import type {
   Post,
   RankingConfig,
   Report,
+  ReportAi,
+  ReportTargetView,
   Risk,
   Topic,
   User
@@ -285,7 +290,7 @@ export class CampusStore {
     return { token, user };
   }
 
-  redeemInvite(code: string, token?: string): { ok: boolean; message: string; user?: User } {
+  async redeemInvite(code: string, token?: string): Promise<{ ok: boolean; message: string; user?: User }> {
     const expected = process.env.INVITE_CODE || (process.env.NODE_ENV === 'production' ? '' : 'CAMPUS');
     if (!expected || !this.safeEqual(code.trim().toUpperCase(), expected.toUpperCase())) {
       return { ok: false, message: '邀请码无效或已使用' };
@@ -596,7 +601,7 @@ export class CampusStore {
     return report;
   }
 
-  getMyPosts(token?: string): Post[] {
+  getMyPosts(token?: string): FeedItem[] {
     const user = this.getUserByToken(token);
     if (!user) throw new Error('AUTH_REQUIRED');
     return this.posts
@@ -605,7 +610,8 @@ export class CampusStore {
         const pinA = a.pinnedAt || '';
         const pinB = b.pinnedAt || '';
         return pinB.localeCompare(pinA) || b.createdAt.localeCompare(a.createdAt);
-      });
+      })
+      .map((post) => this.toFeedItem(post, user));
   }
 
   setPinned(publicId: string, token: string | undefined, pinned: boolean): Post {
@@ -645,10 +651,128 @@ export class CampusStore {
     return this.comments.filter((c) => c.authorId === user.id);
   }
 
-  getMyFavorites(token?: string): Post[] {
+  getMyFavorites(token?: string): FeedItem[] {
     const user = this.getUserByToken(token);
     if (!user) throw new Error('AUTH_REQUIRED');
-    return this.posts.filter((p) => p.status === 'published' && p.favoritedBy.has(user.id));
+    return this.posts
+      .filter((p) => p.status === 'published' && p.favoritedBy.has(user.id))
+      .sort((a, b) => b.publishedAt.localeCompare(a.publishedAt))
+      .map((post) => this.toFeedItem(post, user));
+  }
+
+  getMyCommentThreads(token?: string): CommentThread[] {
+    const user = this.getUserByToken(token);
+    if (!user) throw new Error('AUTH_REQUIRED');
+    const publishedPosts = this.posts.filter((p) => p.status === 'published');
+    const threads: CommentThread[] = [];
+
+    for (const post of publishedPosts) {
+      const postComments = this.comments
+        .filter((c) => c.postId === post.id && c.status === 'published')
+        .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+      if (!postComments.length) continue;
+
+      const byId = new Map(postComments.map((c) => [c.id, c]));
+      const onMyPost = post.authorId === user.id;
+      const isRelevant = (comment: Comment) => {
+        if (onMyPost || comment.authorId === user.id || comment.replyToUserId === user.id) return true;
+        let parentId = comment.parentId;
+        while (parentId) {
+          const parent = byId.get(parentId);
+          if (!parent) break;
+          if (parent.authorId === user.id) return true;
+          parentId = parent.parentId;
+        }
+        const root = comment.rootId ? byId.get(comment.rootId) : undefined;
+        return Boolean(root && root.authorId === user.id);
+      };
+      const relevantIds = new Set(postComments.filter(isRelevant).map((c) => c.id));
+      if (!relevantIds.size) continue;
+
+      // 把被回复的上级评论一并带上，保证“谁回复谁”在页面上有上下文。
+      const selected = new Set(relevantIds);
+      for (const comment of postComments) {
+        if (!relevantIds.has(comment.id)) continue;
+        let parentId = comment.parentId;
+        while (parentId) {
+          const parent = byId.get(parentId);
+          if (!parent || selected.has(parent.id)) break;
+          selected.add(parent.id);
+          parentId = parent.parentId;
+        }
+      }
+
+      const items = postComments
+        .filter((c) => selected.has(c.id))
+        .map((comment) => this.toMyCommentThreadItem(comment, user, byId, onMyPost));
+      if (!items.length) continue;
+
+      const latestAt = items.reduce((latest, item) => item.createdAt > latest ? item.createdAt : latest, items[0].createdAt);
+      const incoming = items.some((item) => item.replyToMe);
+      const othersOnMyPost = items.some((item) => item.onMyPost);
+      const label = incoming
+        ? '有人回复了你的评论'
+        : othersOnMyPost
+          ? '有人评论了你的分享'
+          : '你参与过的评论';
+
+      threads.push({
+        post: {
+          publicId: post.id,
+          text: post.text,
+          media: post.media,
+          topic: post.topic,
+          location: post.location,
+          authorNickname: post.anonymity ? (post.anonymousAlias || '匿名同学') : (this.users.find((u) => u.id === post.authorId)?.nickname || '同学'),
+          createdAt: post.createdAt,
+          isMine: onMyPost
+        },
+        comments: items,
+        label,
+        latestAt
+      });
+    }
+
+    return threads
+      .sort((a, b) => b.latestAt.localeCompare(a.latestAt))
+      .slice(0, 60);
+  }
+
+  private toMyCommentThreadItem(
+    comment: Comment,
+    viewer: User,
+    byId: Map<string, Comment>,
+    onMyPost: boolean
+  ): CommentThreadItem {
+    const author = this.users.find((u) => u.id === comment.authorId);
+    const parent = comment.parentId ? byId.get(comment.parentId) : undefined;
+    const parentAuthor = parent ? this.users.find((u) => u.id === parent.authorId) : undefined;
+    const replyTo = comment.replyToUserId
+      ? this.users.find((u) => u.id === comment.replyToUserId)
+      : parentAuthor;
+    const replyToAnonymous = Boolean(parent && parent.anonymity);
+    const mine = comment.authorId === viewer.id;
+    const replyToMe = !mine && (
+      comment.replyToUserId === viewer.id || Boolean(parent && parent.authorId === viewer.id)
+    );
+    return {
+      id: comment.id,
+      text: comment.text,
+      createdAt: comment.createdAt,
+      author: {
+        nickname: comment.anonymity ? '匿名同学' : (author?.nickname || '同学'),
+        alias: comment.anonymity ? comment.anonymousAlias : undefined,
+        isAnonymous: comment.anonymity,
+        isOfficial: Boolean(author?.isOfficial)
+      },
+      replyToNickname: replyTo
+        ? (replyToAnonymous ? (parent?.anonymousAlias || '匿名同学') : replyTo.nickname)
+        : undefined,
+      mine,
+      replyToMe,
+      onMyPost: onMyPost && !mine,
+      context: !mine && !replyToMe && !(onMyPost && !mine)
+    };
   }
 
   adminLogin(email: string, password: string, totp: string): { token: string; user: string } {
@@ -705,19 +829,35 @@ export class CampusStore {
 
   adminStats(): unknown {
     const published = this.posts.filter((p) => p.status === 'published');
+    const dayKey = (date: Date) =>
+      `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    const postDay = (iso?: string) => {
+      if (!iso) return '';
+      const date = new Date(iso);
+      return Number.isNaN(date.getTime()) ? '' : dayKey(date);
+    };
+    const today = new Date();
+    const days = Array.from({ length: 7 }, (_, index) => {
+      const date = new Date(today);
+      date.setDate(today.getDate() - (6 - index));
+      return date;
+    });
+    const weekPosts = days.map((day) => published.filter((post) => postDay(post.publishedAt) === dayKey(day)).length);
+    const todayCases = this.cases.filter((item) => postDay(item.createdAt) === dayKey(today));
+    const decidedToday = todayCases.filter((item) => item.status !== 'pending').length;
     return {
-      registered: 1286,
-      dau: 318,
-      postsToday: published.filter((p) => p.publishedAt.slice(0, 10) === nowIso().slice(0, 10)).length + 18,
+      registered: this.users.length,
+      dau: new Set(this.sessions.values()).size,
+      postsToday: published.filter((post) => postDay(post.publishedAt) === dayKey(today)).length,
       pending: this.cases.filter((c) => c.status === 'pending').length,
       reports: this.reports.filter((r) => r.status === 'pending').length,
       officialAccounts: this.officialAccounts.filter((a) => a.status === 'active').length,
       officialPending: this.officialAccounts.filter((a) => a.status !== 'active').length,
-      p0: 0,
-      p1: 2,
-      reviewSla: '98%',
-      weekPosts: [32, 28, 41, 36, 52, 44, 61],
-      weekLabels: ['周一', '周二', '周三', '周四', '周五', '周六', '周日'],
+      p0: this.cases.filter((c) => c.risk === 'P0' && c.status === 'pending').length,
+      p1: this.cases.filter((c) => c.risk === 'P1' && c.status === 'pending').length,
+      reviewSla: todayCases.length ? `${Math.round((decidedToday / todayCases.length) * 100)}%` : '—',
+      weekPosts,
+      weekLabels: days.map((day) => ['周日', '周一', '周二', '周三', '周四', '周五', '周六'][day.getDay()]),
       hot: this.getFeed('hot').slice(0, 5)
     };
   }
@@ -847,12 +987,145 @@ export class CampusStore {
     return this.reports;
   }
 
-  resolveReport(reportId: string, status: 'resolved' | 'rejected'): Report | undefined {
-    const report = this.reports.find((r) => r.id === reportId);
+  getReport(reportId: string): Report | undefined {
+    return this.reports.find((r) => r.id === reportId);
+  }
+
+  getAdminReports(): AdminReport[] {
+    return this.reports.map((report) => this.toAdminReport(report));
+  }
+
+  getAdminReport(reportId: string): AdminReport | undefined {
+    const report = this.reports.find((item) => item.id === reportId);
+    return report ? this.toAdminReport(report) : undefined;
+  }
+
+  private toAdminReport(report: Report): AdminReport {
+    return {
+      ...report,
+      reporterName: this.users.find((user) => user.id === report.reporterId)?.nickname || '用户',
+      target: this.reportTargetView(report)
+    };
+  }
+
+  private reportTargetView(report: Report): ReportTargetView {
+    if (report.targetType === 'post') {
+      const post = this.posts.find((item) => item.id === report.targetId);
+      if (!post) return { type: 'post', id: report.targetId, exists: false };
+      const author = this.users.find((user) => user.id === post.authorId);
+      return {
+        type: 'post',
+        id: post.id,
+        exists: true,
+        status: post.status,
+        text: post.text,
+        authorName: post.anonymity ? (post.anonymousAlias || '匿名同学') : (author?.nickname || '同学'),
+        authorId: post.anonymity ? undefined : post.authorId,
+        media: post.media.map((media) => media.url),
+        createdAt: post.createdAt
+      };
+    }
+    if (report.targetType === 'comment') {
+      const comment = this.comments.find((item) => item.id === report.targetId);
+      if (!comment) return { type: 'comment', id: report.targetId, exists: false };
+      const author = this.users.find((user) => user.id === comment.authorId);
+      const post = this.posts.find((item) => item.id === comment.postId);
+      return {
+        type: 'comment',
+        id: comment.id,
+        exists: true,
+        status: comment.status,
+        text: comment.text,
+        authorName: comment.anonymity ? (comment.anonymousAlias || '匿名同学') : (author?.nickname || '同学'),
+        authorId: comment.anonymity ? undefined : comment.authorId,
+        postId: comment.postId,
+        postText: post?.text,
+        createdAt: comment.createdAt
+      };
+    }
+    const user = this.users.find((item) => item.id === report.targetId);
+    return user
+      ? { type: 'user', id: user.id, exists: true, nickname: user.nickname, avatar: user.avatar, createdAt: user.createdAt }
+      : { type: 'user', id: report.targetId, exists: false };
+  }
+
+  setReportAi(reportId: string, ai: ReportAi): Report | undefined {
+    const report = this.reports.find((item) => item.id === reportId);
     if (!report) return undefined;
-    report.status = status;
+    report.ai = ai;
     this.changed();
     return report;
+  }
+
+  resolveReport(
+    reportId: string,
+    status: 'resolved' | 'rejected',
+    options: { ai?: ReportAi; hide?: boolean; handledBy?: string } = {}
+  ): Report | undefined {
+    const report = this.reports.find((r) => r.id === reportId);
+    if (!report) return undefined;
+    const wasPending = report.status === 'pending';
+    report.status = status;
+    if (options.ai) report.ai = options.ai;
+    report.handledAt = nowIso();
+    if (wasPending && status === 'resolved' && options.hide !== false) {
+      this.hideReportedTarget(report);
+    }
+    if (wasPending) {
+      this.notificationForUser(
+        report.reporterId,
+        status === 'resolved' ? '你的举报已处理' : '你的举报未通过复核',
+        status === 'resolved' ? '经复核，被举报内容已处理。' : '经复核，当前证据不足以认定违规。',
+        '/pages/notifications/index'
+      );
+    }
+    this.changed();
+    return report;
+  }
+
+  private hideReportedTarget(report: Report): void {
+    if (report.targetType === 'post') {
+      const post = this.posts.find((item) => item.id === report.targetId);
+      if (!post) return;
+      post.status = 'hidden';
+      this.notifyReview(
+        post.authorId,
+        '你的分享因举报被隐藏',
+        report.ai?.reason || '经复核，内容不符合社区公约，已暂时隐藏。',
+        `/pages/post/detail?id=${post.id}`
+      );
+      return;
+    }
+    if (report.targetType === 'comment') {
+      const comment = this.comments.find((item) => item.id === report.targetId);
+      if (!comment) return;
+      const wasPublished = comment.status === 'published';
+      comment.status = 'hidden';
+      const post = this.posts.find((item) => item.id === comment.postId);
+      if (wasPublished && post) {
+        post.commentCount = Math.max(0, post.commentCount - 1);
+      }
+      this.notifyReview(
+        comment.authorId,
+        '你的评论因举报被隐藏',
+        report.ai?.reason || '经复核，内容不符合社区公约，已暂时隐藏。',
+        comment.postId ? `/pages/post/detail?id=${comment.postId}` : '/pages/me/list?type=comments'
+      );
+    }
+  }
+
+  private notificationForUser(userId: string, title: string, body: string, link: string): void {
+    if (!userId) return;
+    this.notifications.unshift({
+      id: id('noti'),
+      userId,
+      type: 'review',
+      title,
+      body,
+      link,
+      read: false,
+      createdAt: nowIso()
+    });
   }
 
   getRankingConfig(): RankingConfig {
@@ -914,6 +1187,7 @@ export class CampusStore {
         isOfficial: author.isOfficial
       },
       publishedAt: post.publishedAt,
+      createdAt: post.createdAt,
       likeCount: post.likeCount,
       commentCount: post.commentCount,
       favoriteCount: post.favoriteCount,

@@ -33,4 +33,13 @@ export class MeController {
       throw new UnauthorizedException('请先登录');
     }
   }
+
+  @Get('comment-threads')
+  commentThreads(@Req() req: FastifyRequest) {
+    try {
+      return ok(this.store.getMyCommentThreads(tokenFrom(req)));
+    } catch {
+      throw new UnauthorizedException('请先登录');
+    }
+  }
 }

@@ -1,7 +1,17 @@
 const api = require('../../utils/api');
-const { timeAgo, initial } = require('../../utils/format');
+const { timeAgo, formatDateTime, initial } = require('../../utils/format');
 
 const TITLES = { posts: '我的发布', comments: '我的评论', favorites: '我的收藏' };
+
+function displayName(author) {
+  if (!author) return '同学';
+  return author.isAnonymous ? (author.alias || '匿名同学') : (author.nickname || '同学');
+}
+
+function excerpt(text, max) {
+  const value = String(text || '').replace(/\s+/g, ' ').trim();
+  return value.length > max ? `${value.slice(0, max)}…` : value;
+}
 
 Page({
   data: {
@@ -15,28 +25,36 @@ Page({
     const type = TITLES[options.type] ? options.type : 'posts';
     this.setData({ type, title: TITLES[type] });
     wx.setNavigationBarTitle({ title: TITLES[type] });
-    this.load();
+    this.load(true);
   },
 
-  async load() {
-    this.setData({ loading: true });
+  onShow() {
+    if (this.loadedOnce) this.load(false);
+  },
+
+  async load(showSkeleton) {
+    if (showSkeleton) this.setData({ loading: true });
     try {
       let items = [];
       if (this.data.type === 'posts') items = await api.getMyPosts();
-      if (this.data.type === 'comments') items = await api.getMyComments();
+      if (this.data.type === 'comments') items = await api.getMyCommentThreads();
       if (this.data.type === 'favorites') items = await api.getFavorites();
-      this.setData({
-        items: (items || []).map((item) => this.decorate(item)),
-        loading: false
-      });
+      const decorated = (items || []).map((item) => (
+        this.data.type === 'comments' ? this.decorateThread(item) : this.decoratePost(item)
+      ));
+      this.loadedOnce = true;
+      this.setData({ items: decorated, loading: false });
     } catch (error) {
-      this.setData({ loading: false, items: [] });
+      if (showSkeleton) this.setData({ items: [], loading: false });
+      else wx.showToast({ title: '刷新失败，请稍后再试', icon: 'none' });
     }
   },
 
-  decorate(item) {
+  decoratePost(item) {
     const copy = Object.assign({}, item);
-    copy.timeText = timeAgo(copy.time || copy.createdAt);
+    copy.timeText = timeAgo(copy.time || copy.createdAt || copy.publishedAt);
+    copy.dateText = formatDateTime(copy.createdAt || copy.time || copy.publishedAt);
+    copy.media = (copy.media || []).slice(0, 9);
     if (copy.author) {
       copy.author = Object.assign({}, copy.author);
       copy.author.initial = initial(copy.author.isAnonymous ? copy.author.alias : copy.author.nickname);
@@ -47,10 +65,39 @@ Page({
     return copy;
   },
 
+  decorateThread(thread) {
+    const copy = Object.assign({}, thread);
+    copy.post = Object.assign({}, copy.post);
+    copy.threadId = copy.post.publicId;
+    copy.post.excerpt = excerpt(copy.post.text, 56);
+    copy.post.cover = copy.post.media && copy.post.media.length ? copy.post.media[0].url : '';
+    copy.latestText = timeAgo(copy.latestAt);
+    copy.comments = (copy.comments || []).map((comment) => {
+      const item = Object.assign({}, comment);
+      item.author = Object.assign({}, comment.author);
+      item.authorName = displayName(comment.author);
+      item.authorInitial = initial(item.authorName);
+      item.timeText = timeAgo(comment.createdAt);
+      if (item.mine) {
+        item.roleText = item.replyToNickname ? `你回复了 ${item.replyToNickname}` : '你的评论';
+      } else if (item.replyToMe) {
+        item.roleText = '回复了你';
+      } else if (item.onMyPost) {
+        item.roleText = '评论了你的分享';
+      } else {
+        item.roleText = item.replyToNickname ? `回复 ${item.replyToNickname}` : '相关评论';
+      }
+      return item;
+    });
+    return copy;
+  },
+
   onOpen(e) {
-    const id = e.currentTarget.dataset.id || (e.detail && e.detail.id);
+    const dataset = e.currentTarget.dataset || {};
+    const id = dataset.id || (e.detail && e.detail.id);
     if (this.data.type === 'comments') {
-      wx.navigateTo({ url: `/pages/post/detail?id=${id}` });
+      const postId = dataset.postid || id;
+      if (postId) wx.navigateTo({ url: `/pages/post/detail?id=${postId}` });
       return;
     }
     const item = this.data.items.find((row) => row.id === id);
@@ -74,16 +121,78 @@ Page({
     }
   },
 
+  itemIndex(id) {
+    return this.data.items.findIndex((item) => String(item.id) === String(id));
+  },
+
   onCardLike(e) {
     if (!api.getUser()) return;
-    const target = this.data.items.find((item) => item.id === e.detail.id);
-    api.toggleLike(e.detail.id, !(target && target.liked)).then(() => this.load());
+    const id = e.detail.id;
+    const index = this.itemIndex(id);
+    if (index < 0) return;
+    const target = this.data.items[index];
+    const next = !target.liked;
+    const count = Math.max(0, (target.likeCount || 0) + (next ? 1 : -1));
+    this.setData({
+      [`items[${index}].liked`]: next,
+      [`items[${index}].likeCount`]: count
+    });
+    api.toggleLike(id, next).then((result) => {
+      const current = this.itemIndex(id);
+      if (current < 0 || !result) return;
+      this.setData({
+        [`items[${current}].liked`]: Boolean(result.liked),
+        [`items[${current}].likeCount`]: result.count
+      });
+    }).catch(() => {
+      const current = this.itemIndex(id);
+      if (current < 0) return;
+      this.setData({
+        [`items[${current}].liked`]: target.liked,
+        [`items[${current}].likeCount`]: target.likeCount
+      });
+      wx.showToast({ title: '操作失败，请稍后再试', icon: 'none' });
+    });
   },
 
   onCardFavorite(e) {
     if (!api.getUser()) return;
-    const target = this.data.items.find((item) => item.id === e.detail.id);
-    api.toggleFavorite(e.detail.id, !(target && target.favorited)).then(() => this.load());
+    const id = e.detail.id;
+    const index = this.itemIndex(id);
+    if (index < 0) return;
+    const target = this.data.items[index];
+    const next = !target.favorited;
+    const count = Math.max(0, (target.favoriteCount || 0) + (next ? 1 : -1));
+    this.setData({
+      [`items[${index}].favorited`]: next,
+      [`items[${index}].favoriteCount`]: count
+    });
+    api.toggleFavorite(id, next).then((result) => {
+      if (this.data.type === 'favorites' && !next) {
+        this.setData({ items: this.data.items.filter((row) => String(row.id) !== String(id)) });
+        wx.showToast({ title: '已取消收藏', icon: 'none' });
+        return;
+      }
+      const current = this.itemIndex(id);
+      if (current < 0 || !result) return;
+      this.setData({
+        [`items[${current}].favorited`]: Boolean(result.favorited),
+        [`items[${current}].favoriteCount`]: result.count
+      });
+    }).catch(() => {
+      const current = this.itemIndex(id);
+      if (current < 0) return;
+      this.setData({
+        [`items[${current}].favorited`]: target.favorited,
+        [`items[${current}].favoriteCount`]: target.favoriteCount
+      });
+      wx.showToast({ title: '操作失败，请稍后再试', icon: 'none' });
+    });
+  },
+
+  onCardComment(e) {
+    const id = e.detail.id;
+    if (id) wx.navigateTo({ url: `/pages/post/detail?id=${id}` });
   },
 
   togglePin(e) {
@@ -92,7 +201,7 @@ Page({
     if (!target) return;
     api.pinPost(id, !target.pinnedAt).then(() => {
       wx.showToast({ title: target.pinnedAt ? '已取消置顶' : '已置顶', icon: 'none' });
-      this.load();
+      this.load(false);
     }).catch((error) => {
       const message = (error && error.message) || '置顶失败';
       if (message.includes('置顶条数')) {
@@ -114,7 +223,7 @@ Page({
         try {
           await api.deletePost(id);
           wx.showToast({ title: '已删除', icon: 'success' });
-          this.load();
+          this.load(false);
         } catch (error) {
           wx.showToast({ title: '删除失败', icon: 'none' });
         }

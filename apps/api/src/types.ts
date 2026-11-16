@@ -79,6 +79,30 @@ export interface Notice {
   createdAt: string;
 }
 
+export interface ReportAi {
+  decision: 'reject' | 'uphold' | 'needs_human';
+  reason: string;
+  evidence: string[];
+  confidence: number;
+  checkedAt: string;
+}
+
+export interface ReportTargetView {
+  type: 'post' | 'comment' | 'user';
+  id: string;
+  exists: boolean;
+  status?: string;
+  text?: string;
+  authorName?: string;
+  authorId?: string;
+  media?: string[];
+  postId?: string;
+  postText?: string;
+  nickname?: string;
+  avatar?: string;
+  createdAt?: string;
+}
+
 export interface Report {
   id: string;
   reporterId: string;
@@ -87,7 +111,14 @@ export interface Report {
   reason: string;
   detail?: string;
   status: 'pending' | 'resolved' | 'rejected';
+  ai?: ReportAi;
+  handledAt?: string;
   createdAt: string;
+}
+
+export interface AdminReport extends Report {
+  reporterName: string;
+  target: ReportTargetView;
 }
 
 export interface Notification {
@@ -160,6 +191,7 @@ export interface FeedItem {
     isOfficial: boolean;
   };
   publishedAt: string;
+  createdAt: string;
   likeCount: number;
   commentCount: number;
   favoriteCount: number;
@@ -172,4 +204,39 @@ export interface FeedItem {
   heatScore?: number;
   isMine?: boolean;
   pinnedAt?: string;
+}
+
+export interface CommentThreadPost {
+  publicId: string;
+  text: string;
+  media: Media[];
+  topic?: string;
+  location?: string;
+  authorNickname: string;
+  createdAt: string;
+  isMine: boolean;
+}
+
+export interface CommentThreadItem {
+  id: string;
+  text: string;
+  createdAt: string;
+  author: {
+    nickname: string;
+    alias?: string;
+    isAnonymous: boolean;
+    isOfficial: boolean;
+  };
+  replyToNickname?: string;
+  mine: boolean;
+  replyToMe: boolean;
+  onMyPost: boolean;
+  context: boolean;
+}
+
+export interface CommentThread {
+  post: CommentThreadPost;
+  comments: CommentThreadItem[];
+  label: string;
+  latestAt: string;
 }

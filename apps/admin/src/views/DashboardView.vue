@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, ref } from 'vue';
 import { getDashboard, getQueue } from '../api';
+import { useLivePoll } from '../composables/useLivePoll';
 import type { HotItem, ModerationCase } from '../types';
 
 const emit = defineEmits<{ go: [key: 'moderation' | 'reports' | 'notices' | 'ranking'] }>();
@@ -22,16 +23,19 @@ const pending = ref<ModerationCase[]>([]);
 const error = ref('');
 const maxPost = computed(() => Math.max(...(stats.value.weekPosts || [1]), 1));
 
-onMounted(async () => {
+async function load() {
   try {
     const [dashboard, queue] = await Promise.all([getDashboard(), getQueue()]);
     stats.value = dashboard.stats;
     hotItems.value = dashboard.hot;
     pending.value = queue.slice(0, 4);
+    error.value = '';
   } catch (e) {
     error.value = (e as Error).message;
   }
-});
+}
+
+useLivePoll(load, 2000);
 </script>
 
 <template>

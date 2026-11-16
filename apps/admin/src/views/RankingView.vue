@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue';
+import { reactive, ref } from 'vue';
 import { ElMessage } from 'element-plus';
 import { getDashboard, getRanking, saveRanking } from '../api';
+import { useLivePoll } from '../composables/useLivePoll';
 import type { HotItem, RankingConfig } from '../types';
 
 const defaults: RankingConfig = {
@@ -22,16 +23,30 @@ const hotItems = ref<HotItem[]>([]);
 const lastSaved = ref('加载中…');
 const error = ref('');
 
-onMounted(async () => {
+async function load() {
   try {
     const [ranking, dashboard] = await Promise.all([getRanking(), getDashboard()]);
     Object.assign(config, ranking);
     hotItems.value = dashboard.hot;
     lastSaved.value = '来自 API · 平台管理员';
+    error.value = '';
   } catch (e) {
     error.value = (e as Error).message;
   }
-});
+}
+
+async function refreshHot() {
+  try {
+    const dashboard = await getDashboard();
+    hotItems.value = dashboard.hot;
+    error.value = '';
+  } catch (e) {
+    error.value = (e as Error).message;
+  }
+}
+
+load();
+useLivePoll(refreshHot, 4000);
 
 async function save() {
   try {

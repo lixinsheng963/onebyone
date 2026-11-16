@@ -34,14 +34,14 @@
     <view class="back-link" bindtap="back">‹ 返回</view>
     <view class="form-kicker">INVITE CODE</view>
     <view class="form-title serif">输入邀请码</view>
-    <view class="form-sub">邀请码单次有效，7 天内使用。没有邀请码可以去现场认证。</view>
+    <view class="form-sub">请使用管理员发放的邀请码；可用次数和有效期以发放记录为准。</view>
 
     <view class="code-box">
       <input
         class="code-input"
         value="{{code}}"
-        maxlength="8"
-        placeholder="CAMPUS"
+        maxlength="32"
+        placeholder="请输入管理员提供的邀请码"
         bindinput="onCode"
         focus
       />
@@ -71,7 +71,7 @@
     <view wx:if="{{error}}" class="form-error">{{error}}</view>
 
     <button class="btn-primary" bindtap="submitOnsite">完成现场认证</button>
-    <view class="form-note">演示环境：现场码同样使用 <text>CAMPUS</text></view>
+    <view class="form-note">现场码同样为管理员发放的一次性邀请码，请向工作人员索取。</view>
   </view>
 
   <view wx:else class="auth-wrap done-wrap">

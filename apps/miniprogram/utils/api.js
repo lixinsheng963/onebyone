@@ -81,10 +81,14 @@ function normalizePost(post) {
   const author = Object.assign({}, post.author || {});
   return Object.assign({}, post, {
     id: post.id || post.publicId,
-    time: post.time || post.publishedAt,
+    time: post.time || post.publishedAt || post.createdAt,
+    createdAt: post.createdAt || post.time || post.publishedAt,
     likeCount: post.likeCount || 0,
     favoriteCount: post.favoriteCount || 0,
     commentCount: post.commentCount || 0,
+    media: post.media || [],
+    liked: Boolean(post.liked),
+    favorited: Boolean(post.favorited),
     author: {
       nickname: author.nickname || '同学',
       alias: author.alias,
@@ -233,6 +237,15 @@ function getMyComments() {
   return request('/me/comments').then((items) => (items || []).map(normalizeComment));
 }
 
+function getMyCommentThreads() {
+  if (!config.useRemote) return Promise.resolve(mock.getMyCommentThreads());
+  return request('/me/comment-threads').then((items) => (items || []).map((thread) => Object.assign({}, thread, {
+    comments: (thread.comments || []).map((comment) => Object.assign({}, comment, {
+      time: comment.createdAt
+    }))
+  })));
+}
+
 function getFavorites() {
   if (!config.useRemote) return Promise.resolve(mock.getFavorites());
   return request('/me/favorites').then((items) => (items || []).map(normalizePost));
@@ -278,6 +291,7 @@ module.exports = {
   markRead,
   getMyPosts,
   getMyComments,
+  getMyCommentThreads,
   getFavorites,
   getTopics,
   getViewData,

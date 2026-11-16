@@ -4,10 +4,10 @@
 
 ## 版本状态
 
-- 当前版本：`v0.2.0-preproduction`（2026-11-16）
-- 已跑通：小程序核心内容闭环、管理端八个栏目、MySQL 规范化持久化、Redis 限流、AI 文本审核/举报复核、邀请码、审计日志、自动化 e2e 与安全 smoke。
-- **尚未达到正式上线标准。** 完整的上线阻断项、外部依赖、测试矩阵和完成定义见 [docs/PRODUCTION-READINESS.md](docs/PRODUCTION-READINESS.md)。
-- 当前重点不是继续堆功能，而是补齐官方账号授权/学校审核人、账号治理、注销/申诉、双人复核、图片内容安全、生产 HTTPS/真实微信登录、并发压测与备份监控。
+- 当前版本：`v0.3.0-rc.1`（2026-11-16）
+- 已跑通：小程序核心内容闭环、管理端 11 个栏目、MySQL 规范化持久化、Redis 限流、AI 文本审核/举报复核、邀请码、审计日志、RBAC/学校审核人、官方账号授权链、用户治理、真实注销、申诉、双人复核、图片安全适配器、生产配置校验与压测。
+- **当前是 Release Candidate，尚未完成正式线上部署。** 完整的上线阻断项、外部依赖、测试矩阵和完成定义见 [docs/PRODUCTION-READINESS.md](docs/PRODUCTION-READINESS.md)。
+- 距正式上线主要剩外部依赖与目标服务器验收：备案域名/HTTPS、正式微信 AppID、学校授权材料、图片审核供应商、真实备份恢复演练和真机验收。
 
 ## 目录
 
@@ -72,7 +72,7 @@ sudo bash /opt/campus/deploy/alibaba-oneclick.sh
 - 填 COS：图片自动上传腾讯云 COS，返回签名 URL；数据库/快照只保存 `objectKey` 和元数据。当前签名有效期 7 天，正式长期运行建议改为“读取时重新签名”或接入 CDN 回源鉴权。
 - `PUBLIC_BASE_URL`：本地默认 `http://127.0.0.1:3000`；用手机真机调试时改成电脑局域网地址，例如 `http://192.168.1.4:3000`（以电脑当前局域网 IPv4 为准）。
 - 小程序上传接口：`POST /api/v1/media`（multipart，字段名 `file`），发布时传 `mediaIds`。
-- 当前图片审核（`mediaCheckAsync`/OCR）还未接，先保证上传、存储、展示和后台可见；这是正式上线的 P0 阻断项之一。
+- 图片上传后会调用可配置的图片安全适配器（`IMAGE_SAFETY_URL`）：明确违规时删除文件并返回 400，审核服务不可用时返回 503；未配置适配器时保持人工审核。生产必须配置真实网关（微信 `mediaCheckAsync` 或等价服务）。
 
 腾讯云 COS 四项：
 
@@ -100,21 +100,25 @@ docker compose -f deploy/docker-compose.yml up -d --build
 
 访问 `http://服务器IP/` 进入管理后台，`/api/v1/...` 为 API。API 已支持 MySQL 规范化业务表（`DATA_MODE=mysql`，首次启动自动建表并迁移旧 `app_state` 快照）和 Redis 限流；未配置 MySQL 时仍可回退 `file`/`memory`。
 
+正式环境请用 [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) 中的 Nginx HTTPS/systemd/备份脚本，而不是 Docker Compose 演示配置。生产启动会强制校验真实微信参数、HTTPS `PUBLIC_BASE_URL`、CORS 白名单、MySQL/Redis 和强密码，缺项直接拒绝启动。
+
 ## 账号与登录
 
 - 本地演示：`ALLOW_DEMO_LOGIN=true` 时允许固定用户登录；生产必须设为 `false`。
 - 生产微信登录：配置 `WX_APPID/WX_SECRET`，并设置 `ALLOW_DEMO_LOGIN=false`，API 会调用微信 `code2Session`。
-- 管理员账号：不在前端展示，由 `.env` 的 `ADMIN_EMAIL / ADMIN_PASSWORD / ADMIN_TOTP_SECRET` 配置；启动时会同步一条 `admin_users` 记录（密码 scrypt 哈希），管理员登录仍以 env 为权威。
-- 管理后台已接真实 API：审核队列读取 `/api/v1/admin/moderation/queue`，审核决策写回 API，并写 `audit_logs`。审核队列 1 秒、概览/举报 2 秒、其余页面 3-4 秒静默轮询；单飞、页面隐藏暂停、失败退避，发布后无需手动刷新。举报页展示内容和 AI 初筛详情，AI 自动驳回/通过，图片举报转人工复核。
+- 管理员账号：平台根账号由 `.env` 的 `ADMIN_EMAIL / ADMIN_PASSWORD / ADMIN_TOTP_SECRET` 初始化并同步到 `admin_users`（scrypt 哈希）；平台管理员可在“团队权限”创建内容审核员/学校审核人。根账号 env 兜底仅用于平台管理员，普通管理员登录以数据库账号为准。
+- 管理后台已接真实 API：审核队列 1 秒、概览/举报 2 秒、其余页面 3-4 秒静默轮询；单飞、页面隐藏暂停、失败退避，发布后无需手动刷新。举报页展示内容和 AI 初筛详情；高风险 P0/P1 需两名不同审核员一致，冲突由平台管理员第三票裁决。
 - 管理员 TOTP：`ADMIN_TOTP_SECRET` 必须是 Base32（A-Z2-7）；用 Authenticator 扫描 `otpauth://totp/Campus:admin@campus.local?secret=<secret>&issuer=Campus`。本地临时可用 `ADMIN_TOTP=123456` 并清空 secret。
-- 邀请码：客户端只接受管理后台发放的邀请码，旧的本地默认 `CAMPUS` 会在启动时自动吊销；MySQL `invite_codes` 已接入次数/过期/吊销校验，后台“邀请码”页可创建/吊销并实时显示已用次数，API 为 `GET/POST /api/v1/admin/invite-codes` 与 `POST /api/v1/admin/invite-codes/:id/revoke`。学校审核人表 `school_reviewers` 仍为多校运营预留，当前单校后台未开放；官方账号授权文件/学校初审/平台复核仍未完整接入，属于上线阻断项，详见生产清单。
+- 邀请码：客户端只接受管理后台发放的邀请码，旧的本地默认 `CAMPUS` 会在启动时自动吊销；MySQL `invite_codes` 已接入次数/过期/吊销校验，后台“邀请码”页可创建/吊销并实时显示已用次数，API 为 `GET/POST /api/v1/admin/invite-codes` 与 `POST /api/v1/admin/invite-codes/:id/revoke`。
+- 官方账号：后台可新建/编辑组织、上传授权文件、学校审核人初审、平台复核、到期自动失效；授权文件只允许管理员下载，不能匿名访问。
+- 账号治理：后台“用户治理”支持禁言/封禁/恢复；小程序设置页可真实注销；举报/申诉/审核均留审计记录。
 - 生产环境必须接入真实微信 `code2Session`、HTTPS、TOTP、MySQL、Redis、COS 与 DeepSeek。
 
 ## 已实现
 
 - 小程序：首页（最新/热门/精选）、紧急通知、官方通知、详情、评论/回复、发布、认证、我的、通知、举报、申诉、设置、社区公约；“我的”支持朋友圈式发布列表、相关评论会话和即时取消收藏。
 - API：登录、邀请码、feed、帖子、评论、点赞/收藏、阅读、通知、举报、`/me/posts`、`/me/favorites`、`/me/comment-threads`、后台审核/通知/热度配置
-- 管理后台：概览、审核队列、官方账号、通知、举报、热度配置、邀请码、审计日志
+- 管理后台：概览、审核队列、用户治理、申诉复核、官方账号、通知、举报、热度配置、邀请码、审计日志、团队权限
 - 设计：纸张感、朱砂红、宋体标题、单列信息流、底部操作条
 
 ## 说明

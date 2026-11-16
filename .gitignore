@@ -9,4 +9,5 @@ coverage/
 deploy/data/
 apps/api/data/
 apps/api/uploads/
+apps/api/storage/
 apps/miniprogram/.idea/

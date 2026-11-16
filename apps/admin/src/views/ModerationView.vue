@@ -63,8 +63,12 @@ async function decide(decision: 'approved' | 'rejected') {
     return;
   }
   try {
-    await decideCase(selected.value.id, decision, note.value.trim());
-    ElMessage.success(decision === 'approved' ? '已通过，内容进入信息流' : '已拒绝，已通知作者');
+    const result = await decideCase(selected.value.id, decision, note.value.trim());
+    if (result?.status === 'pending') {
+      ElMessage.info(result.reviewConflict ? '两位审核员意见不一致，已转平台管理员裁决' : '已记录第一位审核意见，等待第二位审核员复核');
+    } else {
+      ElMessage.success(decision === 'approved' ? '已通过，内容进入信息流' : '已拒绝，已通知作者');
+    }
     emit('changed');
     await load(false);
   } catch (e) {
@@ -164,6 +168,18 @@ async function decide(decision: 'approved' | 'rejected') {
           <div><span>举报</span><b>0 条</b></div>
         </div>
 
+        <div v-if="selected.reviews?.length" class="review-votes">
+          <h4>复核记录</h4>
+          <div v-for="review in selected.reviews" :key="`${review.reviewerId}-${review.createdAt}`" class="review-vote">
+            <span class="badge" :class="review.decision === 'approved' ? 'badge-green' : 'badge-p0'">
+              {{ review.decision === 'approved' ? '通过' : '拒绝' }}
+            </span>
+            <b>{{ review.reviewerName }}</b>
+            <span class="muted">{{ review.reason || '无说明' }}</span>
+          </div>
+          <p v-if="selected.reviewConflict" class="conflict-note">两位审核员意见不一致，需平台管理员裁决。</p>
+        </div>
+
         <template v-if="selected.status === 'pending'">
           <div class="field note-field">
             <label>审核备注 / 拒绝理由 <span class="required-mark">拒绝必填</span></label>
@@ -217,6 +233,11 @@ async function decide(decision: 'approved' | 'rejected') {
 .review-result { margin-top: 18px; padding: 15px; border-radius: 10px; background: #fbf6ed; border: 1px solid var(--line); }
 .review-result p { margin: 9px 0 4px; font-size: 12px; line-height: 1.6; }
 .review-result small { color: var(--muted); font-size: 10px; }
+.review-votes { margin: 16px 0; padding: 12px; border-radius: 10px; background: #f7f4ed; }
+.review-votes h4 { margin: 0 0 8px; font-size: 11px; letter-spacing: .08em; color: var(--muted); }
+.review-vote { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 6px 0; border-top: 1px solid rgba(0,0,0,.05); font-size: 11px; }
+.review-vote:first-of-type { border-top: 0; }
+.conflict-note { margin: 8px 0 0; color: #b45745; font-size: 11px; }
 .decision-bar { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
 @media (max-width: 1100px) {
   .mod-layout { grid-template-columns: 1fr; }

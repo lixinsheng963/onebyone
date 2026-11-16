@@ -9,6 +9,7 @@ import { NoticesController } from './controllers/notices.controller';
 import { NotificationsController } from './controllers/notifications.controller';
 import { PostsController } from './controllers/posts.controller';
 import { ReportsController } from './controllers/reports.controller';
+import { AuthorizationService } from './core/authorization.service';
 import { DeepSeekService } from './core/deepseek.service';
 import { StoreService } from './core/store.service';
 import { LoginThrottleService } from './core/login-throttle.service';
@@ -16,6 +17,7 @@ import { RedisService } from './core/redis.service';
 import { StorageService } from './core/storage.service';
 import { WechatAuthService } from './core/wechat-auth.service';
 import { WechatSafetyService } from './core/wechat-safety.service';
+import { ImageSafetyService } from './core/image-safety.service';
 
 @Module({
   controllers: [
@@ -40,7 +42,9 @@ import { WechatSafetyService } from './core/wechat-safety.service';
       }
     },
     DeepSeekService,
+    AuthorizationService,
     WechatSafetyService,
+    ImageSafetyService,
     WechatAuthService,
     StorageService,
     RedisService,

@@ -1,9 +1,10 @@
 import { Injectable, OnModuleDestroy } from '@nestjs/common';
-import { createHash, randomBytes, scryptSync } from 'node:crypto';
+import { createHash, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { createPool, type Pool, type PoolConnection, type ResultSetHeader } from 'mysql2/promise';
 import type {
+  Appeal,
   Comment,
   Media,
   ModerationCase,
@@ -18,8 +19,10 @@ import type {
   Topic,
   User
 } from '../types';
+import { verifySync } from 'otplib';
 import { ensureMysqlSchema } from './mysql-schema';
 import { CampusStore, type StoreSnapshot } from './store';
+import type { AdminIdentity, AdminRole } from '../types';
 
 const nowIso = () => new Date().toISOString();
 
@@ -113,6 +116,36 @@ function hashAdminPassword(password: string): string {
   return `scrypt$${salt}$${derived}`;
 }
 
+function verifyAdminPassword(password: string, stored: string): boolean {
+  const [scheme, salt, hash] = stored.split('$');
+  if (scheme !== 'scrypt' || !salt || !hash) return false;
+  try {
+    const expected = Buffer.from(hash, 'hex');
+    const actual = scryptSync(password, salt, expected.length || 64);
+    return expected.length === actual.length && timingSafeEqual(expected, actual);
+  } catch {
+    return false;
+  }
+}
+
+function verifyAdminTotp(totp: string): boolean {
+  const secret = process.env.ADMIN_TOTP_SECRET || '';
+  if (secret) {
+    try {
+      return verifySync({ token: totp, secret, epochTolerance: 30 }).valid;
+    } catch {
+      return false;
+    }
+  }
+  const staticCode = process.env.ADMIN_TOTP || '';
+  return Boolean(staticCode) && totp === staticCode;
+}
+
+interface AdminUserRecord extends AdminIdentity {
+  passwordHash: string;
+  reviewerStatus?: string;
+}
+
 export interface AuditLogInput {
   action: string;
   targetType?: string;
@@ -122,6 +155,7 @@ export interface AuditLogInput {
   requestId?: string;
   ip?: string;
   actorRole?: string;
+  actorId?: number;
 }
 
 @Injectable()
@@ -147,8 +181,11 @@ export class StoreService extends CampusStore implements OnModuleDestroy {
   private reportIds = new Map<string, number>();
   private notificationIds = new Map<string, number>();
   private caseIds = new Map<string, number>();
+  private appealIds = new Map<string, number>();
   private officialIds = new Map<string, number>();
   private adminUserId: number | null = null;
+  private readonly adminUsers = new Map<number, AdminUserRecord>();
+  private readonly adminUsersByEmail = new Map<string, AdminUserRecord>();
 
   async init(): Promise<void> {
     const mode = process.env.DATA_MODE || 'file';
@@ -177,6 +214,7 @@ export class StoreService extends CampusStore implements OnModuleDestroy {
       });
       await ensureMysqlSchema(this.pool);
       await this.seedAdminUser();
+      await this.loadAdminUsers();
       await this.seedInviteCodes();
       const normalized = await this.loadNormalizedSnapshot();
       if (normalized) {
@@ -225,20 +263,183 @@ export class StoreService extends CampusStore implements OnModuleDestroy {
     if (!this.pool) return;
     const email = (process.env.ADMIN_EMAIL || '').trim();
     const password = process.env.ADMIN_PASSWORD || '';
+    const displayName = (process.env.ADMIN_DISPLAY_NAME || '平台管理员').trim() || '平台管理员';
     if (!email || !password) return;
     try {
       const publicId = `adm_${createHash('sha256').update(email).digest('hex').slice(0, 24)}`;
       await this.pool.query(
-        `INSERT INTO admin_users (public_id, email, password_hash, role, status)
-         VALUES (?, ?, ?, 'platform_admin', 'active')
-         ON DUPLICATE KEY UPDATE password_hash = VALUES(password_hash), role = 'platform_admin', status = 'active'`,
-        [publicId, email, hashAdminPassword(password)]
+        `INSERT INTO admin_users (public_id, email, display_name, password_hash, role, status)
+         VALUES (?, ?, ?, ?, 'platform_admin', 'active')
+         ON DUPLICATE KEY UPDATE display_name = VALUES(display_name),
+           password_hash = VALUES(password_hash), role = 'platform_admin', status = 'active'`,
+        [publicId, email, displayName, hashAdminPassword(password)]
       );
       const [rows] = await this.pool.query<any[]>('SELECT id FROM admin_users WHERE email = ? LIMIT 1', [email]);
       this.adminUserId = rows[0]?.id ? Number(rows[0].id) : null;
     } catch (error) {
       console.warn('Admin user seed failed:', (error as Error).message);
     }
+  }
+
+  private async loadAdminUsers(): Promise<void> {
+    this.adminUsers.clear();
+    this.adminUsersByEmail.clear();
+    if (!this.pool) return;
+    try {
+      const [rows] = await this.pool.query<any[]>(
+        `SELECT au.id, au.public_id, au.email, au.display_name, au.password_hash, au.role, au.status,
+                sr.school_id, sr.org_id, sr.status AS reviewer_status
+         FROM admin_users au
+         LEFT JOIN school_reviewers sr ON sr.admin_user_id = au.id AND sr.status = 'active'
+         ORDER BY au.id, sr.id DESC`
+      );
+      for (const row of rows) {
+        const role = ['platform_admin', 'content_reviewer', 'school_reviewer'].includes(asString(row.role))
+          ? asString(row.role) as AdminRole
+          : 'content_reviewer';
+        const record: AdminUserRecord = {
+          id: Number(row.id),
+          publicId: asString(row.public_id),
+          email: asString(row.email),
+          displayName: asString(row.display_name) || asString(row.email).split('@')[0],
+          role,
+          status: asString(row.status) === 'active' ? 'active' : 'disabled',
+          schoolId: asString(row.school_id) || undefined,
+          orgId: asString(row.org_id) || undefined,
+          passwordHash: asString(row.password_hash),
+          reviewerStatus: asString(row.reviewer_status) || undefined
+        };
+        if (this.adminUsers.has(record.id)) continue;
+        this.adminUsers.set(record.id, record);
+        this.adminUsersByEmail.set(record.email.toLowerCase(), record);
+      }
+    } catch (error) {
+      console.warn('Admin users load failed:', (error as Error).message);
+    }
+  }
+
+  private identityFor(record: AdminUserRecord): AdminIdentity {
+    return {
+      id: record.id,
+      publicId: record.publicId,
+      email: record.email,
+      displayName: record.displayName,
+      role: record.role,
+      status: record.status,
+      schoolId: record.schoolId,
+      orgId: record.orgId
+    };
+  }
+
+  getAdminIdentity(token?: string): AdminIdentity | undefined {
+    const subject = this.adminSessionSubject(token);
+    if (!subject) return undefined;
+    if (subject === 'env:platform_admin' || subject === 'admin') {
+      return {
+        id: this.adminUserId || 0,
+        email: process.env.ADMIN_EMAIL || '',
+        displayName: process.env.ADMIN_DISPLAY_NAME || '平台管理员',
+        role: 'platform_admin',
+        status: 'active'
+      };
+    }
+    const match = /^admin:(\d+)$/.exec(subject);
+    if (!match) return undefined;
+    const record = this.adminUsers.get(Number(match[1]));
+    if (!record || record.status !== 'active') return undefined;
+    if (record.role === 'school_reviewer' && record.reviewerStatus !== 'active') return undefined;
+    return this.identityFor(record);
+  }
+
+  adminLogin(email: string, password: string, totp: string): { token: string; user: string; role: string; schoolId?: string; orgId?: string } {
+    const record = this.adminUsersByEmail.get(email.trim().toLowerCase());
+    if (record) {
+      if (record.status !== 'active') throw new Error('ADMIN_AUTH_FAILED');
+      if (!verifyAdminPassword(password, record.passwordHash) || !verifyAdminTotp(totp)) {
+        throw new Error('ADMIN_AUTH_FAILED');
+      }
+      const session = this.issueAdminSession(`admin:${record.id}`, record.displayName);
+      void this.pool?.query('UPDATE admin_users SET last_login_at = UTC_TIMESTAMP(3) WHERE id = ?', [record.id])
+        .catch(() => undefined);
+      return { ...session, role: record.role, schoolId: record.schoolId, orgId: record.orgId };
+    }
+    const fallback = super.adminLogin(email, password, totp);
+    return { ...fallback, role: 'platform_admin' };
+  }
+
+  async listAdminOperators(): Promise<AdminIdentity[]> {
+    return [...this.adminUsers.values()].map((record) => this.identityFor(record));
+  }
+
+  async createAdminOperator(input: {
+    email: string;
+    password: string;
+    displayName?: string;
+    role: AdminRole;
+    schoolId?: string;
+    orgId?: string;
+    authorizedBy?: number;
+    backupAdminUserId?: number;
+  }): Promise<AdminIdentity> {
+    if (!this.pool) throw new Error('ADMIN_DB_REQUIRED');
+    const email = input.email.trim().toLowerCase();
+    const password = input.password;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error('ADMIN_EMAIL_INVALID');
+    if (password.length < 10) throw new Error('ADMIN_PASSWORD_TOO_SHORT');
+    if (input.role !== 'school_reviewer' && input.role !== 'content_reviewer') {
+      throw new Error('ADMIN_ROLE_INVALID');
+    }
+    if (input.role === 'school_reviewer' && (!input.schoolId || !input.orgId)) {
+      throw new Error('SCHOOL_REVIEWER_SCOPE_REQUIRED');
+    }
+    if (this.adminUsersByEmail.has(email)) throw new Error('ADMIN_EMAIL_EXISTS');
+    const displayName = (input.displayName || email.split('@')[0]).trim().slice(0, 64);
+    const publicId = `adm_${randomBytes(12).toString('hex')}`;
+    const connection = await this.pool.getConnection();
+    try {
+      await connection.beginTransaction();
+      const [result] = await connection.query<ResultSetHeader>(
+        `INSERT INTO admin_users (public_id, email, display_name, password_hash, role, status)
+         VALUES (?, ?, ?, ?, ?, 'active')`,
+        [publicId, email, displayName, hashAdminPassword(password), input.role]
+      );
+      const adminId = Number(result.insertId);
+      if (input.role === 'school_reviewer') {
+        await connection.query(
+          `INSERT INTO school_reviewers
+             (admin_user_id, school_id, org_id, authorized_by, backup_admin_user_id, status)
+           VALUES (?, ?, ?, ?, ?, 'active')`,
+          [adminId, input.schoolId, input.orgId, input.authorizedBy || this.adminUserId || 0, input.backupAdminUserId || null]
+        );
+      }
+      await connection.commit();
+      await this.loadAdminUsers();
+      const record = this.adminUsers.get(adminId);
+      if (!record) throw new Error('ADMIN_CREATE_FAILED');
+      return this.identityFor(record);
+    } catch (error) {
+      await connection.rollback().catch(() => undefined);
+      throw error;
+    } finally {
+      connection.release();
+    }
+  }
+
+  async revokeAdminOperator(adminId: number): Promise<AdminIdentity> {
+    if (!this.pool) throw new Error('ADMIN_DB_REQUIRED');
+    const record = this.adminUsers.get(adminId);
+    if (!record) throw new Error('ADMIN_NOT_FOUND');
+    if (record.role === 'platform_admin') throw new Error('ADMIN_CANNOT_REVOKE_PLATFORM');
+    await this.pool.query('UPDATE admin_users SET status = \'disabled\' WHERE id = ?', [adminId]);
+    if (record.role === 'school_reviewer') {
+      await this.pool.query(
+        'UPDATE school_reviewers SET status = \'revoked\', changed_at = UTC_TIMESTAMP(3) WHERE admin_user_id = ? AND status = \'active\'',
+        [adminId]
+      );
+    }
+    this.revokeAdminSubject(`admin:${adminId}`);
+    await this.loadAdminUsers();
+    return { ...this.identityFor(record), status: 'disabled' };
   }
 
   private inviteHash(code: string): string {
@@ -397,7 +598,7 @@ export class StoreService extends CampusStore implements OnModuleDestroy {
            (actor_id, actor_type, actor_role, action, target_type, target_id, before_json, after_json, request_id, ip_hash)
          VALUES (?, 'admin', ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
-          this.adminUserId || 0,
+          input.actorId ?? this.adminUserId ?? 0,
           input.actorRole || 'platform_admin',
           input.action,
           input.targetType || null,
@@ -443,6 +644,7 @@ export class StoreService extends CampusStore implements OnModuleDestroy {
     if (targetType === 'report') return this.reportIds.get(publicId) ?? 0;
     if (targetType === 'moderation_case') return this.caseIds.get(publicId) ?? 0;
     if (targetType === 'official_account') return this.officialIds.get(publicId) ?? 0;
+    if (targetType === 'appeal') return this.appealIds.get(publicId) ?? 0;
     if (targetType === 'comment') return this.commentIds.get(publicId) ?? 0;
     if (targetType === 'user') return this.userIds.get(publicId) ?? 0;
     if (targetType === 'post') return this.postIds.get(publicId) ?? 0;
@@ -496,7 +698,7 @@ export class StoreService extends CampusStore implements OnModuleDestroy {
   private async loadNormalizedSnapshot(): Promise<StoreSnapshot | null> {
     if (!this.pool) return null;
     const [userRows] = await this.pool.query<any[]>(
-      `SELECT id, public_id, openid, nickname, avatar_url, role, level, is_official, official_org, created_at
+      `SELECT id, public_id, openid, nickname, avatar_url, role, level, is_official, official_org, status, muted_until, status_reason, deleted_at, created_at
        FROM users ORDER BY id`
     );
     if (!userRows.length) return null;
@@ -515,6 +717,10 @@ export class StoreService extends CampusStore implements OnModuleDestroy {
         level: ['L0', 'L1', 'L2', 'L3', 'L4'].includes(row.level) ? row.level : 'L1',
         isOfficial: Boolean(row.is_official),
         officialOrg: row.official_org || undefined,
+        status: ['active', 'muted', 'banned', 'deleted'].includes(row.status) ? row.status : 'active',
+        mutedUntil: row.muted_until ? asIso(row.muted_until, '') : undefined,
+        statusReason: row.status_reason || undefined,
+        deletedAt: row.deleted_at ? asIso(row.deleted_at, '') : undefined,
         createdAt: asIso(row.created_at, nowIso())
       });
     }
@@ -663,7 +869,7 @@ export class StoreService extends CampusStore implements OnModuleDestroy {
 
     const [reportRows] = await this.pool.query<any[]>(
       `SELECT id, public_id, reporter_id, target_type, target_id, reason_code, detail, status,
-              ai_decision, ai_reason, ai_evidence, ai_confidence, ai_checked_at, handled_at, created_at
+              ai_decision, ai_reason, ai_evidence, ai_confidence, ai_checked_at, handled_by, handled_at, created_at
        FROM reports ORDER BY id`
     );
     const reports: Report[] = reportRows.map((row) => {
@@ -678,6 +884,7 @@ export class StoreService extends CampusStore implements OnModuleDestroy {
         detail: row.detail || undefined,
         status: ['pending', 'resolved', 'rejected'].includes(row.status) ? row.status : 'pending',
         ai: asReportAi(row),
+        handledById: row.handled_by ? String(row.handled_by) : undefined,
         handledAt: row.handled_at ? asIso(row.handled_at) : undefined,
         createdAt: asIso(row.created_at, nowIso())
       };
@@ -703,7 +910,7 @@ export class StoreService extends CampusStore implements OnModuleDestroy {
     });
 
     const [caseRows] = await this.pool.query<any[]>(
-      `SELECT id, public_id, target_type, target_id, status, priority, labels, evidence,
+      `SELECT id, public_id, target_type, target_id, status, priority, labels, evidence, reviews_json,
               reason_text, decided_by_label, decided_at, created_at
        FROM moderation_cases ORDER BY id`
     );
@@ -721,13 +928,45 @@ export class StoreService extends CampusStore implements OnModuleDestroy {
         status: ['pending', 'approved', 'rejected'].includes(row.status) ? row.status : 'pending',
         createdAt: asIso(row.created_at, nowIso()),
         decidedBy: row.decided_by_label || undefined,
-        decidedAt: row.decided_at ? asIso(row.decided_at) : undefined
+        decidedAt: row.decided_at ? asIso(row.decided_at) : undefined,
+        reviews: Array.isArray(asJson(row.reviews_json)) ? asJson(row.reviews_json) as ModerationCase['reviews'] : undefined
+      };
+    });
+
+    const [appealRows] = await this.pool.query<any[]>(
+      `SELECT id, public_id, user_id, target_type, target_id, reason, status,
+              decision_reason, handled_by, handled_at, created_at
+       FROM appeals ORDER BY id`
+    );
+    const appeals: Appeal[] = appealRows.map((row) => {
+      const publicId = asString(row.public_id);
+      this.appealIds.set(publicId, Number(row.id));
+      return {
+        id: publicId,
+        userId: this.publicIdForUser(Number(row.user_id)),
+        targetType: ['post', 'comment', 'user'].includes(row.target_type) ? row.target_type : 'post',
+        targetId: this.publicIdForTarget(row.target_type, Number(row.target_id)),
+        reason: asString(row.reason),
+        status: ['pending', 'approved', 'rejected'].includes(row.status) ? row.status : 'pending',
+        decisionReason: row.decision_reason || undefined,
+        handledBy: row.handled_by || undefined,
+        handledAt: row.handled_at ? asIso(row.handled_at) : undefined,
+        createdAt: asIso(row.created_at, nowIso())
       };
     });
 
     const [officialRows] = await this.pool.query<any[]>(
-      `SELECT id, public_id, user_id, org_name, authorization_file_key, scope, status, created_at
-       FROM official_accounts ORDER BY id`
+      `SELECT oa.id, oa.public_id, oa.user_id, oa.org_name, oa.org_id, oa.school_id,
+              oa.authorization_file_key, oa.authorization_file_name, oa.authorization_mime,
+              oa.authorization_size, oa.scope, oa.status, oa.school_reviewed_by,
+              oa.school_reviewed_at, oa.reviewed_by, oa.platform_reviewed_at,
+              oa.effective_at, oa.expires_at, oa.created_at,
+              COALESCE(su.display_name, su.email) AS school_reviewer_name,
+              COALESCE(pu.display_name, pu.email) AS platform_reviewer_name
+       FROM official_accounts oa
+       LEFT JOIN admin_users su ON su.id = oa.school_reviewed_by
+       LEFT JOIN admin_users pu ON pu.id = oa.reviewed_by
+       ORDER BY oa.id`
     );
     const officialAccounts: OfficialAccount[] = officialRows.map((row) => {
       const publicId = asString(row.public_id);
@@ -736,11 +975,24 @@ export class StoreService extends CampusStore implements OnModuleDestroy {
         id: publicId,
         userId: this.publicIdForUser(Number(row.user_id)),
         orgName: asString(row.org_name),
+        orgId: row.org_id || undefined,
+        schoolId: asString(row.school_id) || 'campus',
         scope: Array.isArray(asJson(row.scope)) ? asJson(row.scope) as string[] : ['notice'],
-        status: ['pending_school', 'pending_platform', 'active', 'suspended'].includes(row.status)
+        status: ['pending_school', 'pending_platform', 'active', 'suspended', 'expired'].includes(row.status)
           ? row.status
           : 'pending_school',
         authorizationFile: row.authorization_file_key || undefined,
+        authorizationFileName: row.authorization_file_name || undefined,
+        authorizationMime: row.authorization_mime || undefined,
+        authorizationSize: row.authorization_size ? Number(row.authorization_size) : undefined,
+        schoolReviewedBy: row.school_reviewer_name || undefined,
+        schoolReviewedById: row.school_reviewed_by ? Number(row.school_reviewed_by) : undefined,
+        schoolReviewedAt: row.school_reviewed_at ? asIso(row.school_reviewed_at) : undefined,
+        platformReviewedBy: row.platform_reviewer_name || undefined,
+        platformReviewedById: row.reviewed_by ? Number(row.reviewed_by) : undefined,
+        platformReviewedAt: row.platform_reviewed_at ? asIso(row.platform_reviewed_at) : undefined,
+        effectiveAt: row.effective_at ? asIso(row.effective_at) : undefined,
+        expiresAt: row.expires_at ? asIso(row.expires_at) : undefined,
         createdAt: asIso(row.created_at, nowIso())
       };
     });
@@ -799,6 +1051,7 @@ export class StoreService extends CampusStore implements OnModuleDestroy {
       notifications,
       cases,
       topics,
+      appeals,
       officialAccounts,
       rankingConfig,
       sessions,
@@ -886,6 +1139,7 @@ export class StoreService extends CampusStore implements OnModuleDestroy {
       await this.syncReports(connection, previous?.reports, snapshot.reports);
       await this.syncNotifications(connection, previous?.notifications, snapshot.notifications);
       await this.syncCases(connection, previous?.cases, snapshot.cases);
+      await this.syncAppeals(connection, previous?.appeals, snapshot.appeals);
       await this.syncOfficialAccounts(connection, previous?.officialAccounts, snapshot.officialAccounts);
       await this.syncRanking(connection, previous?.rankingConfig, snapshot.rankingConfig);
       await this.syncSessions(connection, previous, snapshot);
@@ -903,11 +1157,13 @@ export class StoreService extends CampusStore implements OnModuleDestroy {
     const changed = this.changedById(previous, current);
     for (const user of changed) {
       const [result] = await connection.query<ResultSetHeader>(
-        `INSERT INTO users (public_id, openid, nickname, avatar_url, role, level, is_official, official_org, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `INSERT INTO users (public_id, openid, nickname, avatar_url, role, level, is_official, official_org, status, muted_until, status_reason, deleted_at, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id), openid = VALUES(openid),
            nickname = VALUES(nickname), avatar_url = VALUES(avatar_url), role = VALUES(role),
-           level = VALUES(level), is_official = VALUES(is_official), official_org = VALUES(official_org)`,
+           level = VALUES(level), is_official = VALUES(is_official), official_org = VALUES(official_org),
+           status = VALUES(status), muted_until = VALUES(muted_until), status_reason = VALUES(status_reason),
+           deleted_at = VALUES(deleted_at)`,
         [
           user.id,
           user.openid || null,
@@ -917,6 +1173,10 @@ export class StoreService extends CampusStore implements OnModuleDestroy {
           user.level || 'L1',
           user.isOfficial || user.role === 'official' ? 1 : 0,
           user.officialOrg || null,
+          user.status || 'active',
+          asSqlDate(user.mutedUntil) || null,
+          user.statusReason || null,
+          asSqlDate(user.deletedAt) || null,
           asSqlDate(user.createdAt) || asSqlDate(nowIso())
         ]
       );
@@ -1253,14 +1513,14 @@ export class StoreService extends CampusStore implements OnModuleDestroy {
       const [result] = await connection.query<ResultSetHeader>(
         `INSERT INTO reports
            (public_id, reporter_id, target_type, target_id, reason_code, detail, status,
-            ai_decision, ai_reason, ai_evidence, ai_confidence, ai_checked_at, handled_at, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ai_decision, ai_reason, ai_evidence, ai_confidence, ai_checked_at, handled_by, handled_at, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id), reporter_id = VALUES(reporter_id),
            target_type = VALUES(target_type), target_id = VALUES(target_id), reason_code = VALUES(reason_code),
            detail = VALUES(detail), status = VALUES(status), ai_decision = VALUES(ai_decision),
            ai_reason = VALUES(ai_reason), ai_evidence = VALUES(ai_evidence),
            ai_confidence = VALUES(ai_confidence), ai_checked_at = VALUES(ai_checked_at),
-           handled_at = VALUES(handled_at)`,
+           handled_by = VALUES(handled_by), handled_at = VALUES(handled_at)`,
         [
           report.id,
           reporterId,
@@ -1274,6 +1534,7 @@ export class StoreService extends CampusStore implements OnModuleDestroy {
           ai ? JSON.stringify(ai.evidence.slice(0, 8)) : null,
           ai ? ai.confidence : null,
           ai ? asSqlDate(ai.checkedAt) : null,
+          report.handledById ? Number(report.handledById) : null,
           asSqlDate(report.handledAt),
           asSqlDate(report.createdAt) || asSqlDate(nowIso())
         ]
@@ -1337,13 +1598,13 @@ export class StoreService extends CampusStore implements OnModuleDestroy {
       const targetId = this.resolveTargetId(item.targetType, item.targetId);
       const [result] = await connection.query<ResultSetHeader>(
         `INSERT INTO moderation_cases (public_id, target_type, target_id, status, priority, risk_score,
-           machine_labels, labels, evidence, reason_text, decision, decided_by_label, decided_at, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+           machine_labels, labels, evidence, reviews_json, reason_text, decision, decided_by_label, decided_at, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id), target_type = VALUES(target_type),
            target_id = VALUES(target_id), status = VALUES(status), priority = VALUES(priority),
            risk_score = VALUES(risk_score), machine_labels = VALUES(machine_labels), labels = VALUES(labels),
-           evidence = VALUES(evidence), reason_text = VALUES(reason_text), decision = VALUES(decision),
-           decided_by_label = VALUES(decided_by_label), decided_at = VALUES(decided_at)`,
+           evidence = VALUES(evidence), reviews_json = VALUES(reviews_json), reason_text = VALUES(reason_text),
+           decision = VALUES(decision), decided_by_label = VALUES(decided_by_label), decided_at = VALUES(decided_at)`,
         [
           item.id,
           item.targetType,
@@ -1354,6 +1615,7 @@ export class StoreService extends CampusStore implements OnModuleDestroy {
           JSON.stringify(item.labels),
           JSON.stringify(item.labels),
           JSON.stringify(item.evidence),
+          item.reviews?.length ? JSON.stringify(item.reviews) : null,
           item.reason || null,
           item.status,
           item.decidedBy || null,
@@ -1362,6 +1624,48 @@ export class StoreService extends CampusStore implements OnModuleDestroy {
         ]
       );
       this.caseIds.set(item.id, Number(result.insertId));
+    }
+  }
+
+  private async syncAppeals(
+    connection: PoolConnection,
+    previous: Appeal[] | undefined,
+    current: Appeal[]
+  ): Promise<void> {
+    const changed = this.changedById(previous, current);
+    const currentIds = new Set(current.map((item) => item.id));
+    for (const item of previous || []) {
+      if (!currentIds.has(item.id)) {
+        const dbId = this.appealIds.get(item.id);
+        if (dbId) await connection.query('DELETE FROM appeals WHERE id = ?', [dbId]);
+        this.appealIds.delete(item.id);
+      }
+    }
+    for (const item of changed) {
+      const userId = this.userIds.get(item.userId);
+      const targetId = this.resolveTargetId(item.targetType, item.targetId);
+      if (!userId || !targetId) continue;
+      const values = [
+        item.id,
+        userId,
+        item.targetType,
+        targetId,
+        item.reason,
+        item.status,
+        item.decisionReason || null,
+        item.handledBy || null,
+        item.handledAt ? asSqlDate(item.handledAt) : null
+      ];
+      const [result] = await connection.query<ResultSetHeader>(
+        `INSERT INTO appeals (public_id, user_id, target_type, target_id, reason, status,
+          decision_reason, handled_by, handled_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE
+          reason = VALUES(reason), status = VALUES(status), decision_reason = VALUES(decision_reason),
+          handled_by = VALUES(handled_by), handled_at = VALUES(handled_at)`,
+        values
+      );
+      if (result.insertId) this.appealIds.set(item.id, Number(result.insertId));
     }
   }
 
@@ -1383,18 +1687,38 @@ export class StoreService extends CampusStore implements OnModuleDestroy {
       const userId = this.userIds.get(item.userId);
       if (!userId) continue;
       const [result] = await connection.query<ResultSetHeader>(
-        `INSERT INTO official_accounts (public_id, user_id, school_id, org_name, authorization_file_key,
-           scope, status, created_at)
-         VALUES (?, ?, 'campus', ?, ?, ?, ?, ?)
+        `INSERT INTO official_accounts (public_id, user_id, school_id, org_name, org_id,
+           authorization_file_key, authorization_file_name, authorization_mime, authorization_size,
+           scope, status, school_reviewed_by, school_reviewed_at, reviewed_by, platform_reviewed_at,
+           effective_at, expires_at, last_reviewed_at, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id), user_id = VALUES(user_id), org_name = VALUES(org_name),
-           authorization_file_key = VALUES(authorization_file_key), scope = VALUES(scope), status = VALUES(status)`,
+           org_id = VALUES(org_id), authorization_file_key = VALUES(authorization_file_key),
+           authorization_file_name = VALUES(authorization_file_name), authorization_mime = VALUES(authorization_mime),
+           authorization_size = VALUES(authorization_size), scope = VALUES(scope), status = VALUES(status),
+           school_reviewed_by = VALUES(school_reviewed_by), school_reviewed_at = VALUES(school_reviewed_at),
+           reviewed_by = VALUES(reviewed_by), platform_reviewed_at = VALUES(platform_reviewed_at),
+           effective_at = VALUES(effective_at), expires_at = VALUES(expires_at),
+           last_reviewed_at = VALUES(last_reviewed_at)`,
         [
           item.id,
           userId,
+          item.schoolId || 'campus',
           item.orgName,
+          item.orgId || null,
           item.authorizationFile || null,
+          item.authorizationFileName || null,
+          item.authorizationMime || null,
+          item.authorizationSize || null,
           JSON.stringify(item.scope),
           item.status,
+          item.schoolReviewedById || null,
+          asSqlDate(item.schoolReviewedAt) || null,
+          item.platformReviewedById || null,
+          asSqlDate(item.platformReviewedAt) || null,
+          asSqlDate(item.effectiveAt) || null,
+          asSqlDate(item.expiresAt) || null,
+          asSqlDate(item.platformReviewedAt || item.schoolReviewedAt) || null,
           asSqlDate(item.createdAt) || asSqlDate(nowIso())
         ]
       );

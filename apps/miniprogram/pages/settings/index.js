@@ -64,12 +64,19 @@ Page({
   deleteAccount() {
     wx.showModal({
       title: '注销账号',
-      content: '注销会删除认证信息和账号数据；已发布内容按社区公约和法律要求处理。演示环境不执行真实删除。',
-      confirmText: '提交申请',
+      content: '注销后昵称和头像会被匿名化，账号无法登录，已发布内容按社区公约与法律要求保留或处理。',
+      confirmText: '确认注销',
+      confirmColor: '#b64a3a',
       success: (res) => {
-        if (res.confirm) {
-          wx.showToast({ title: '已记录注销申请', icon: 'none' });
-        }
+        if (!res.confirm) return;
+        api.deleteAccount().then(() => {
+          api.logout();
+          this.setData({ user: null });
+          wx.showToast({ title: '账号已注销', icon: 'none' });
+          setTimeout(() => wx.switchTab({ url: '/pages/home/index' }), 600);
+        }).catch((error) => {
+          wx.showToast({ title: (error && error.message) || '注销失败，请稍后再试', icon: 'none' });
+        });
       }
     });
   },

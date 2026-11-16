@@ -2,6 +2,7 @@ import { BadRequestException, Controller, HttpException, HttpStatus, Post, Req, 
 import type { FastifyRequest } from 'fastify';
 import { ok, tokenFrom } from '../common';
 import { StorageService } from '../core/storage.service';
+import { ImageSafetyService } from '../core/image-safety.service';
 import { StoreService } from '../core/store.service';
 
 interface UploadWindow {
@@ -15,7 +16,8 @@ export class MediaController {
 
   constructor(
     private readonly store: StoreService,
-    private readonly storage: StorageService
+    private readonly storage: StorageService,
+    private readonly imageSafety: ImageSafetyService
   ) {}
 
   @Post()
@@ -32,6 +34,20 @@ export class MediaController {
     try {
       const buffer = await file.toBuffer();
       const media = await this.storage.upload(buffer, file.mimetype, user.id);
+      try {
+        const safety = await this.imageSafety.check({ url: media.url, mediaId: media.id, ownerId: user.id });
+        if (safety.status === 'blocked') {
+          await this.storage.deleteMedia([media]);
+          throw new BadRequestException('图片未通过内容安全检测');
+        }
+        media.safetyStatus = safety.status;
+        media.safetyLabel = safety.label;
+        media.safetyTraceId = safety.traceId;
+      } catch (error) {
+        if (error instanceof BadRequestException) throw error;
+        await this.storage.deleteMedia([media]);
+        throw new HttpException('图片内容安全检测暂不可用，请稍后再试', HttpStatus.SERVICE_UNAVAILABLE);
+      }
       const current = this.uploads.get(user.id);
       if (!current || current.resetAt <= now) {
         this.uploads.set(user.id, { count: 1, resetAt: now + 3600_000 });

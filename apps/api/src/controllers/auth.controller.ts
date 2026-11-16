@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpException, HttpStatus, Post, Req, UnauthorizedException } from '@nestjs/common';
+import { Body, Controller, ForbiddenException, Get, HttpException, HttpStatus, Post, Req, UnauthorizedException } from '@nestjs/common';
 import type { FastifyRequest } from 'fastify';
 import { ok, requireText, tokenFrom } from '../common';
 import { LoginThrottleService } from '../core/login-throttle.service';
@@ -38,7 +38,13 @@ export class AuthController {
       throw new UnauthorizedException('演示登录已关闭');
     }
     await this.loginThrottle.success(key);
-    return ok(this.store.login(code));
+    try {
+      return ok(this.store.login(code));
+    } catch (error) {
+      if ((error as Error).message === 'ACCOUNT_DISABLED') throw new ForbiddenException('账号已被停用');
+      if ((error as Error).message === 'ACCOUNT_MUTED') throw new ForbiddenException('账号已被禁言');
+      throw error;
+    }
   }
 
   @Post('auth/logout')

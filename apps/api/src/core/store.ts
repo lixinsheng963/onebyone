@@ -2,6 +2,8 @@ import { createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
 import { verifySync } from 'otplib';
 import type {
   AdminReport,
+  AdminUserView,
+  Appeal,
   Comment,
   CommentThread,
   CommentThreadItem,
@@ -49,6 +51,7 @@ export interface StoreSnapshot {
   cases: ModerationCase[];
   topics: Topic[];
   officialAccounts: OfficialAccount[];
+  appeals: Appeal[];
   rankingConfig: RankingConfig;
   sessions: Array<[string, string]>;
   sessionExpiry?: Array<[string, number]>;
@@ -72,6 +75,7 @@ export class CampusStore {
   private notifications: Notification[] = [...seedNotifications];
   private cases: ModerationCase[] = [...seedCases];
   private topics: Topic[] = [...seedTopics];
+  private appeals: Appeal[] = [];
   private sessions = new Map<string, string>();
   private sessionExpiry = new Map<string, number>();
   private readonly tokenPepper = process.env.SESSION_PEPPER || 'campus-local-session-pepper';
@@ -96,15 +100,19 @@ export class CampusStore {
       id: 'oa_library',
       userId: 'u_official',
       orgName: '学校图书馆',
+      orgId: 'org_library',
+      schoolId: 'campus',
       scope: ['notice'],
       status: 'active',
-      authorizationFile: '授权文件已留档',
+      effectiveAt: nowIso(),
       createdAt: nowIso()
     },
     {
       id: 'oa_club',
       userId: 'u_cat',
       orgName: '话剧社',
+      orgId: 'org_club',
+      schoolId: 'campus',
       scope: ['notice'],
       status: 'pending_school',
       createdAt: nowIso()
@@ -137,6 +145,7 @@ export class CampusStore {
       cases: this.cases,
       topics: this.topics,
       officialAccounts: this.officialAccounts,
+      appeals: this.appeals,
       rankingConfig: this.rankingConfig,
       sessions: [...this.sessions.entries()],
       sessionExpiry: [...this.sessionExpiry.entries()],
@@ -162,6 +171,7 @@ export class CampusStore {
     if (Array.isArray(snapshot.reports)) this.reports = snapshot.reports;
     if (Array.isArray(snapshot.notifications)) this.notifications = snapshot.notifications;
     if (Array.isArray(snapshot.cases)) this.cases = snapshot.cases;
+    if (Array.isArray(snapshot.appeals)) this.appeals = snapshot.appeals;
     if (Array.isArray(snapshot.topics)) this.topics = snapshot.topics;
     if (Array.isArray(snapshot.officialAccounts)) this.officialAccounts = snapshot.officialAccounts;
     if (snapshot.rankingConfig) this.rankingConfig = snapshot.rankingConfig;
@@ -248,13 +258,14 @@ export class CampusStore {
   }
 
   login(code: string): { token: string; user: User } {
+    const existing = this.users.find((u) => u.id === 'u_me')!;
+    this.assertAccountUsable(existing);
     const token = `demo_${randomUUID()}`;
     const sessionKey = this.hashToken(token);
     this.sessions.set(sessionKey, 'u_me');
     this.sessionExpiry.set(sessionKey, Date.now() + this.userSessionTtl());
-    const user = this.users.find((u) => u.id === 'u_me')!;
     this.changed();
-    return { token, user };
+    return { token, user: existing };
   }
 
   logout(token?: string): void {
@@ -267,6 +278,7 @@ export class CampusStore {
 
   loginWithOpenId(openid: string): { token: string; user: User } {
     let user = this.users.find((item) => item.openid === openid);
+    if (user) this.assertAccountUsable(user);
     if (!user) {
       const userId = `u_${randomUUID().replace(/-/g, '').slice(0, 12)}`;
       user = {
@@ -326,6 +338,81 @@ export class CampusStore {
     }
     const userId = this.sessions.get(sessionKey);
     return userId ? this.users.find((u) => u.id === userId) : undefined;
+  }
+
+  private assertAccountUsable(user: User): void {
+    if (user.status === 'banned' || user.status === 'deleted') throw new Error('ACCOUNT_DISABLED');
+    if (user.status === 'muted' && user.mutedUntil && new Date(user.mutedUntil).getTime() <= Date.now()) {
+      user.status = 'active';
+      user.mutedUntil = undefined;
+      user.statusReason = undefined;
+      this.changed();
+    }
+    if (user.status === 'muted') throw new Error('ACCOUNT_MUTED');
+  }
+
+  private revokeUserSessions(userId: string): void {
+    for (const [key, owner] of [...this.sessions.entries()]) {
+      if (owner !== userId) continue;
+      this.sessions.delete(key);
+      this.sessionExpiry.delete(key);
+    }
+  }
+
+  deleteMyAccount(token?: string): void {
+    const user = this.getUserByToken(token);
+    if (!user) throw new Error('AUTH_REQUIRED');
+    user.status = 'deleted';
+    user.deletedAt = nowIso();
+    user.statusReason = undefined;
+    user.nickname = '已注销用户';
+    user.avatar = '';
+    user.openid = undefined;
+    this.revokeUserSessions(user.id);
+    this.changed();
+  }
+
+  listAdminUsers(): AdminUserView[] {
+    return this.users.map((user) => ({
+      id: user.id,
+      nickname: user.nickname,
+      avatar: user.avatar,
+      role: user.role,
+      level: user.level,
+      isOfficial: user.isOfficial,
+      officialOrg: user.officialOrg,
+      status: user.status || 'active',
+      mutedUntil: user.mutedUntil,
+      statusReason: user.statusReason,
+      createdAt: user.createdAt,
+      postCount: this.posts.filter((post) => post.authorId === user.id).length,
+      commentCount: this.comments.filter((comment) => comment.authorId === user.id).length
+    }));
+  }
+
+  setUserStatus(userId: string, status: 'active' | 'muted' | 'banned' | 'deleted', options: { mutedUntil?: string; reason?: string } = {}): User {
+    const user = this.users.find((item) => item.id === userId);
+    if (!user) throw new Error('NOT_FOUND');
+    user.status = status;
+    user.mutedUntil = status === 'muted' ? options.mutedUntil : undefined;
+    user.statusReason = options.reason;
+    user.deletedAt = status === 'deleted' ? nowIso() : undefined;
+    if (status === 'banned' || status === 'deleted') this.revokeUserSessions(user.id);
+    if (status === 'deleted') {
+      user.nickname = '已注销用户';
+      user.avatar = '';
+      user.openid = undefined;
+    } else {
+      const title = status === 'active'
+        ? '账号已恢复正常'
+        : status === 'muted' ? '你的账号已被禁言' : '你的账号已被封禁';
+      const body = status === 'active'
+        ? '你现在可以正常发布和互动了，请遵守社区公约。'
+        : `${options.reason || '请遵守社区公约。'}${status === 'muted' && options.mutedUntil ? `（截止 ${options.mutedUntil}）` : ''}`;
+      this.notificationForUser(user.id, title, body, '/pages/notifications/index');
+    }
+    this.changed();
+    return user;
   }
 
   getMe(token?: string): User | undefined {
@@ -388,6 +475,7 @@ export class CampusStore {
   createPost(input: CreatePostInput, token?: string, aiModeration?: ModerationResult | null): { post: Post; moderation: ModerationCase | null; message: string } {
     const user = this.getUserByToken(token);
     if (!user) throw new Error('AUTH_REQUIRED');
+    this.assertAccountUsable(user);
     const rawText = String(input.text || '');
     const ruleModeration = moderateText(rawText);
     const moderation = aiModeration ? mergeModeration(ruleModeration, aiModeration) : ruleModeration;
@@ -454,6 +542,7 @@ export class CampusStore {
   createComment(postId: string, text: string, token?: string, parentId?: string, anonymity = true, aiModeration?: ModerationResult | null): { comment: Comment; message: string } {
     const user = this.getUserByToken(token);
     if (!user) throw new Error('AUTH_REQUIRED');
+    this.assertAccountUsable(user);
     const post = this.posts.find((p) => p.id === postId);
     if (!post || post.status !== 'published') throw new Error('NOT_FOUND');
     if (!post.commentsEnabled) throw new Error('COMMENTS_CLOSED');
@@ -505,6 +594,7 @@ export class CampusStore {
   setLike(postId: string, token: string | undefined, liked: boolean): { liked: boolean; count: number } {
     const user = this.getUserByToken(token);
     if (!user) throw new Error('AUTH_REQUIRED');
+    this.assertAccountUsable(user);
     const post = this.findPost(postId);
     if (post.status !== 'published') throw new Error('NOT_FOUND');
     const current = post.likedBy.has(user.id);
@@ -522,6 +612,7 @@ export class CampusStore {
   setFavorite(postId: string, token: string | undefined, favorited: boolean): { favorited: boolean; count: number } {
     const user = this.getUserByToken(token);
     if (!user) throw new Error('AUTH_REQUIRED');
+    this.assertAccountUsable(user);
     const post = this.findPost(postId);
     if (post.status !== 'published') throw new Error('NOT_FOUND');
     const current = post.favoritedBy.has(user.id);
@@ -580,6 +671,7 @@ export class CampusStore {
   createReport(input: { targetType: 'post' | 'comment' | 'user'; targetId: string; reason: string; detail?: string }, token?: string): Report {
     const user = this.getUserByToken(token);
     if (!user) throw new Error('AUTH_REQUIRED');
+    this.assertAccountUsable(user);
     const targetExists = input.targetType === 'post'
       ? this.posts.some((post) => post.id === input.targetId)
       : input.targetType === 'comment'
@@ -775,7 +867,40 @@ export class CampusStore {
     };
   }
 
-  adminLogin(email: string, password: string, totp: string): { token: string; user: string } {
+  protected issueAdminSession(subject: string, displayName: string): { token: string; user: string } {
+    const token = `admin_${randomUUID()}`;
+    const sessionKey = this.hashToken(token);
+    this.adminSessions.set(sessionKey, subject);
+    this.adminSessionExpiry.set(sessionKey, Date.now() + this.adminSessionTtl());
+    this.changed();
+    return { token, user: displayName };
+  }
+
+  protected adminSessionSubject(token?: string): string | undefined {
+    if (!token) return undefined;
+    const sessionKey = this.hashToken(token);
+    const expiry = this.adminSessionExpiry.get(sessionKey);
+    if (expiry !== undefined && expiry <= Date.now()) {
+      this.adminSessions.delete(sessionKey);
+      this.adminSessionExpiry.delete(sessionKey);
+      this.changed();
+      return undefined;
+    }
+    return this.adminSessions.get(sessionKey);
+  }
+
+  protected revokeAdminSubject(subject: string): void {
+    let touched = false;
+    for (const [sessionKey, current] of this.adminSessions) {
+      if (current !== subject) continue;
+      this.adminSessions.delete(sessionKey);
+      this.adminSessionExpiry.delete(sessionKey);
+      touched = true;
+    }
+    if (touched) this.changed();
+  }
+
+  adminLogin(email: string, password: string, totp: string): { token: string; user: string; role?: string } {
     const expectedEmail = process.env.ADMIN_EMAIL || '';
     const expectedPassword = process.env.ADMIN_PASSWORD || '';
     const expectedTotp = process.env.ADMIN_TOTP || '';
@@ -798,12 +923,7 @@ export class CampusStore {
       && this.safeEqual(password, expectedPassword)
       && validTotp;
     if (!valid) throw new Error('ADMIN_AUTH_FAILED');
-    const token = `admin_${randomUUID()}`;
-    const sessionKey = this.hashToken(token);
-    this.adminSessions.set(sessionKey, 'admin');
-    this.adminSessionExpiry.set(sessionKey, Date.now() + this.adminSessionTtl());
-    this.changed();
-    return { token, user: '平台管理员' };
+    return { ...this.issueAdminSession('env:platform_admin', '平台管理员'), role: 'platform_admin' };
   }
 
   adminLogout(token?: string): void {
@@ -815,16 +935,7 @@ export class CampusStore {
   }
 
   isAdmin(token?: string): boolean {
-    if (!token) return false;
-    const sessionKey = this.hashToken(token);
-    const expiry = this.adminSessionExpiry.get(sessionKey);
-    if (expiry !== undefined && expiry <= Date.now()) {
-      this.adminSessions.delete(sessionKey);
-      this.adminSessionExpiry.delete(sessionKey);
-      this.changed();
-      return false;
-    }
-    return this.adminSessions.has(sessionKey);
+    return this.adminSessionSubject(token) !== undefined;
   }
 
   adminStats(): unknown {
@@ -886,12 +997,58 @@ export class CampusStore {
       });
   }
 
-  decideCase(caseId: string, decision: 'approved' | 'rejected', reason?: string): ModerationCase | undefined {
+  decideCase(
+    caseId: string,
+    decision: 'approved' | 'rejected',
+    reason?: string,
+    reviewer?: { id: string; name: string; role?: string }
+  ): ModerationCase | undefined {
     const item = this.cases.find((c) => c.id === caseId);
     if (!item) return undefined;
+    if (item.status !== 'pending') throw new Error('CASE_CLOSED');
+
+    const needsDoubleReview = item.risk === 'P0' || item.risk === 'P1';
+    if (needsDoubleReview) {
+      item.reviews ||= [];
+      const reviewerId = reviewer?.id || 'platform';
+      if (item.reviews.some((review) => review.reviewerId === reviewerId)) {
+        throw new Error('REVIEW_DUPLICATE');
+      }
+      item.reviews.push({
+        reviewerId,
+        reviewerName: reviewer?.name || '平台管理员',
+        decision,
+        reason,
+        createdAt: nowIso()
+      });
+      const approvals = item.reviews.filter((review) => review.decision === 'approved').length;
+      const rejections = item.reviews.filter((review) => review.decision === 'rejected').length;
+      const conflict = approvals > 0 && rejections > 0;
+      const enoughSameVotes = item.reviews.filter((review) => review.decision === decision).length >= 2;
+      const tieBreak = conflict && reviewer?.role === 'platform_admin';
+      if (!enoughSameVotes && !tieBreak) {
+        item.reviewConflict = conflict;
+        item.reason = conflict
+          ? '两名审核员意见不一致，等待平台管理员裁决。'
+          : '第一位审核员已完成审核，等待第二位审核员复核。';
+        this.changed();
+        return item;
+      }
+      if (enoughSameVotes && !conflict) {
+        item.decidedBy = item.reviews
+          .filter((review) => review.decision === decision)
+          .map((review) => review.reviewerName)
+          .join(' / ');
+      } else {
+        item.decidedBy = `${reviewer?.name || '平台管理员'}（争议裁决）`;
+      }
+      item.reviewConflict = false;
+    } else {
+      item.decidedBy = reviewer?.name || '平台管理员';
+    }
+
     item.status = decision;
     item.reason = reason || item.reason;
-    item.decidedBy = '平台管理员';
     item.decidedAt = nowIso();
     if (item.targetType === 'comment') {
       const comment = this.comments.find((c) => c.id === item.targetId);
@@ -950,15 +1107,125 @@ export class CampusStore {
   }
 
   getOfficialAccounts(): OfficialAccount[] {
+    this.refreshOfficialExpiry();
     return this.officialAccounts;
   }
 
-  reviewOfficialAccount(accountId: string, status: OfficialAccount['status']): OfficialAccount | undefined {
+  getOfficialAccount(accountId: string): OfficialAccount | undefined {
+    this.refreshOfficialExpiry();
+    return this.officialAccounts.find((a) => a.id === accountId);
+  }
+
+  createOfficialAccount(input: {
+    orgName: string;
+    orgId?: string;
+    scope: string[];
+    expiresAt: string;
+  }): OfficialAccount {
+    const userId = id('u_official');
+    const user: User = {
+      id: userId,
+      publicId: userId,
+      nickname: input.orgName,
+      avatar: '',
+      role: 'official',
+      level: 'L4',
+      isOfficial: false,
+      officialOrg: input.orgName,
+      createdAt: nowIso()
+    };
+    this.users.push(user);
+    const account: OfficialAccount = {
+      id: id('oa'),
+      userId,
+      orgName: input.orgName,
+      orgId: input.orgId,
+      schoolId: 'campus',
+      scope: input.scope,
+      status: 'pending_school',
+      expiresAt: input.expiresAt,
+      createdAt: nowIso()
+    };
+    this.officialAccounts.unshift(account);
+    this.changed();
+    return account;
+  }
+
+  updateOfficialAccount(accountId: string, patch: { orgName?: string; orgId?: string; scope?: string[]; expiresAt?: string }): OfficialAccount | undefined {
     const item = this.officialAccounts.find((a) => a.id === accountId);
     if (!item) return undefined;
-    item.status = status;
+    if (patch.orgName !== undefined) item.orgName = patch.orgName;
+    if (patch.orgId !== undefined) item.orgId = patch.orgId;
+    if (patch.scope !== undefined) item.scope = patch.scope;
+    if (patch.expiresAt !== undefined) item.expiresAt = patch.expiresAt;
     this.changed();
     return item;
+  }
+
+  attachOfficialAuthorization(accountId: string, file: { key: string; name: string; mime: string; size: number }): OfficialAccount | undefined {
+    const item = this.officialAccounts.find((a) => a.id === accountId);
+    if (!item) return undefined;
+    item.authorizationFile = file.key;
+    item.authorizationFileName = file.name;
+    item.authorizationMime = file.mime;
+    item.authorizationSize = file.size;
+    this.changed();
+    return item;
+  }
+
+  reviewOfficialAccount(
+    accountId: string,
+    status: OfficialAccount['status'],
+    reviewer?: { id: number; role: 'platform_admin' | 'content_reviewer' | 'school_reviewer'; displayName: string }
+  ): OfficialAccount | undefined {
+    const item = this.officialAccounts.find((a) => a.id === accountId);
+    if (!item) return undefined;
+    const now = nowIso();
+    item.status = status;
+    if (status === 'pending_platform') {
+      item.schoolReviewedBy = reviewer?.displayName || '学校审核人';
+      item.schoolReviewedById = reviewer?.id;
+      item.schoolReviewedAt = now;
+    }
+    if (status === 'active' || status === 'suspended') {
+      item.platformReviewedBy = reviewer?.displayName || '平台管理员';
+      item.platformReviewedById = reviewer?.id;
+      item.platformReviewedAt = now;
+    }
+    if (status === 'active') {
+      item.effectiveAt = now;
+      if (item.expiresAt && new Date(item.expiresAt).getTime() <= Date.now()) {
+        item.status = 'expired';
+      }
+    }
+    const owner = this.users.find((u) => u.id === item.userId);
+    if (owner) {
+      const active = item.status === 'active';
+      owner.isOfficial = active;
+      owner.role = active ? 'official' : 'student';
+      owner.level = active ? 'L4' : 'L1';
+      owner.officialOrg = active ? item.orgName : undefined;
+    }
+    this.changed();
+    return item;
+  }
+
+  private refreshOfficialExpiry(): void {
+    let dirty = false;
+    for (const item of this.officialAccounts) {
+      if (item.status === 'active' && item.expiresAt && new Date(item.expiresAt).getTime() <= Date.now()) {
+        item.status = 'expired';
+        const owner = this.users.find((u) => u.id === item.userId);
+        if (owner) {
+          owner.isOfficial = false;
+          owner.role = 'student';
+          owner.level = 'L1';
+          owner.officialOrg = undefined;
+        }
+        dirty = true;
+      }
+    }
+    if (dirty) this.changed();
   }
 
   getAdminNotices(): Notice[] {
@@ -990,6 +1257,135 @@ export class CampusStore {
   getReport(reportId: string): Report | undefined {
     return this.reports.find((r) => r.id === reportId);
   }
+
+  createAppeal(
+    token: string | undefined,
+    input: { targetType: 'post' | 'comment' | 'user'; targetId: string; reason: string }
+  ): Appeal {
+    const user = this.getUserByToken(token);
+    if (!user) throw new Error('AUTH_REQUIRED');
+    let targetId = input.targetId;
+    if (input.targetType === 'post') {
+      const post = this.posts.find((item) => item.id === targetId);
+      if (!post) throw new Error('NOT_FOUND');
+      if (post.authorId !== user.id) throw new Error('FORBIDDEN');
+      if (post.status !== 'hidden' && post.status !== 'rejected') throw new Error('NOT_APPEALABLE');
+      targetId = post.id;
+    } else if (input.targetType === 'comment') {
+      const comment = this.comments.find((item) => item.id === targetId);
+      if (!comment) throw new Error('NOT_FOUND');
+      if (comment.authorId !== user.id) throw new Error('FORBIDDEN');
+      if (comment.status !== 'hidden') throw new Error('NOT_APPEALABLE');
+      targetId = comment.id;
+    } else {
+      if (user.id !== targetId) throw new Error('FORBIDDEN');
+      if (user.status === 'active') throw new Error('NOT_APPEALABLE');
+      targetId = user.id;
+    }
+    const existing = this.appeals.find(
+      (item) => item.userId === user.id && item.targetType === input.targetType && item.targetId === targetId && item.status === 'pending'
+    );
+    if (existing) throw new Error('APPEAL_DUPLICATE');
+    const appeal: Appeal = {
+      id: id('appeal'),
+      userId: user.id,
+      targetType: input.targetType,
+      targetId,
+      reason: input.reason,
+      status: 'pending',
+      createdAt: nowIso()
+    };
+    this.appeals.unshift(appeal);
+    this.changed();
+    return appeal;
+  }
+
+  getMyAppeals(token?: string): Appeal[] {
+    const user = this.getUserByToken(token);
+    if (!user) throw new Error('AUTH_REQUIRED');
+    return this.appeals.filter((item) => item.userId === user.id);
+  }
+
+  getAdminAppeals(): Array<Appeal & { user?: User; targetText?: string; targetStatus?: string }> {
+    return this.appeals.map((appeal) => {
+      const user = this.users.find((item) => item.id === appeal.userId);
+      let targetText = '';
+      let targetStatus = '';
+      if (appeal.targetType === 'post') {
+        const post = this.posts.find((item) => item.id === appeal.targetId);
+        targetText = post?.text || '';
+        targetStatus = post?.status || 'missing';
+      } else if (appeal.targetType === 'comment') {
+        const comment = this.comments.find((item) => item.id === appeal.targetId);
+        targetText = comment?.text || '';
+        targetStatus = comment?.status || 'missing';
+      } else {
+        const target = this.users.find((item) => item.id === appeal.targetId);
+        targetText = target ? `${target.nickname}（${target.publicId}）` : '';
+        targetStatus = target?.status || 'missing';
+      }
+      return { ...appeal, user, targetText, targetStatus };
+    });
+  }
+
+  resolveAppeal(
+    appealId: string,
+    status: 'approved' | 'rejected',
+    options: { reason?: string; handledBy?: string; reviewerId?: string } = {}
+  ): Appeal | undefined {
+    const appeal = this.appeals.find((item) => item.id === appealId);
+    if (!appeal) return undefined;
+    if (appeal.status !== 'pending') throw new Error('APPEAL_CLOSED');
+    if (options.reviewerId) {
+      const reviewerId = String(options.reviewerId);
+      const handledReport = this.reports.some((report) =>
+        report.targetType === appeal.targetType
+        && report.targetId === appeal.targetId
+        && report.status === 'resolved'
+        && String(report.handledById || '') === reviewerId
+      );
+      const reviewedCase = this.cases.some((item) =>
+        item.targetType === appeal.targetType
+        && item.targetId === appeal.targetId
+        && (item.reviews || []).some((review) => String(review.reviewerId) === reviewerId)
+      );
+      if (handledReport || reviewedCase) throw new Error('APPEAL_SELF_REVIEW');
+    }
+    appeal.status = status;
+    appeal.decisionReason = options.reason;
+    appeal.handledBy = options.handledBy;
+    appeal.handledAt = nowIso();
+    if (status === 'approved') {
+      if (appeal.targetType === 'post') {
+        const post = this.posts.find((item) => item.id === appeal.targetId);
+        if (post) {
+          post.status = 'published';
+          post.publishedAt = nowIso();
+          post.heatScore = this.computePostHeat(post);
+        }
+      } else if (appeal.targetType === 'comment') {
+        const comment = this.comments.find((item) => item.id === appeal.targetId);
+        if (comment) comment.status = 'published';
+      } else {
+        const user = this.users.find((item) => item.id === appeal.targetId);
+        if (user && user.status !== 'deleted') {
+          user.status = 'active';
+          user.mutedUntil = undefined;
+          user.statusReason = undefined;
+        }
+      }
+    }
+    this.notifyReview(
+      appeal.userId,
+      status === 'approved' ? '你的申诉已通过' : '你的申诉未通过',
+      options.reason || (status === 'approved' ? '相关内容已恢复，请遵守社区公约。' : '复核维持原处理结果。'),
+      '/pages/notifications/index'
+    );
+    this.changed();
+    return appeal;
+  }
+
+
 
   getAdminReports(): AdminReport[] {
     return this.reports.map((report) => this.toAdminReport(report));
@@ -1060,13 +1456,14 @@ export class CampusStore {
   resolveReport(
     reportId: string,
     status: 'resolved' | 'rejected',
-    options: { ai?: ReportAi; hide?: boolean; handledBy?: string } = {}
+    options: { ai?: ReportAi; hide?: boolean; handledBy?: string; handledById?: string } = {}
   ): Report | undefined {
     const report = this.reports.find((r) => r.id === reportId);
     if (!report) return undefined;
     const wasPending = report.status === 'pending';
     report.status = status;
     if (options.ai) report.ai = options.ai;
+    report.handledById = options.handledById;
     report.handledAt = nowIso();
     if (wasPending && status === 'resolved' && options.hide !== false) {
       this.hideReportedTarget(report);

@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onErrorCaptured, onMounted, ref, watch } from 'vue';
-import { adminLogin, adminLogout, clearToken, getDashboard, getOfficialAccounts, getReports, hasToken } from './api';
+import { adminLogin, adminLogout, clearToken, getAdminMe, getDashboard, getOfficialAccounts, getReports, hasToken } from './api';
+import type { AdminRole } from './types';
 import AuditLogsView from './views/AuditLogsView.vue';
+import AppealsView from './views/AppealsView.vue';
 import DashboardView from './views/DashboardView.vue';
 import InviteCodesView from './views/InviteCodesView.vue';
 import ModerationView from './views/ModerationView.vue';
@@ -9,34 +11,56 @@ import NoticesView from './views/NoticesView.vue';
 import OfficialView from './views/OfficialView.vue';
 import RankingView from './views/RankingView.vue';
 import ReportsView from './views/ReportsView.vue';
+import TeamView from './views/TeamView.vue';
+import UsersView from './views/UsersView.vue';
 
-type ViewKey = 'dashboard' | 'moderation' | 'official' | 'notices' | 'reports' | 'ranking' | 'invites' | 'audit';
+type ViewKey = 'dashboard' | 'moderation' | 'users' | 'appeals' | 'official' | 'notices' | 'reports' | 'ranking' | 'invites' | 'audit' | 'team';
 
 const nav: Array<{ key: ViewKey; label: string; en: string; icon: string }> = [
   { key: 'dashboard', label: '概览', en: 'Overview', icon: '◒' },
   { key: 'moderation', label: '审核队列', en: 'Moderation', icon: '◷' },
+  { key: 'users', label: '用户治理', en: 'Users', icon: '☷' },
+  { key: 'appeals', label: '申诉复核', en: 'Appeals', icon: '↺' },
   { key: 'official', label: '官方账号', en: 'Official', icon: '◈' },
   { key: 'notices', label: '通知', en: 'Notices', icon: '▤' },
   { key: 'reports', label: '举报', en: 'Reports', icon: '⚑' },
   { key: 'ranking', label: '热度配置', en: 'Ranking', icon: '↗' },
   { key: 'invites', label: '邀请码', en: 'Invites', icon: '⌁' },
-  { key: 'audit', label: '审计日志', en: 'Audit', icon: '◫' }
+  { key: 'audit', label: '审计日志', en: 'Audit', icon: '◫' },
+  { key: 'team', label: '团队权限', en: 'Team', icon: '◎' }
 ];
 
+const roleNav: Record<AdminRole, ViewKey[]> = {
+  platform_admin: nav.map((item) => item.key),
+  content_reviewer: ['dashboard', 'moderation', 'users', 'appeals', 'reports'],
+  school_reviewer: ['dashboard', 'official', 'notices']
+};
+
 const active = ref<ViewKey>('dashboard');
+const role = ref<AdminRole>('platform_admin');
 const viewError = ref('');
 const authed = ref(false);
 const loginError = ref('');
 const login = ref({ email: '', password: '', totp: '' });
 const badgeCounts = ref({ moderation: 0, official: 0, reports: 0 });
 let badgeTimer: number | undefined;
-const views = { dashboard: DashboardView, moderation: ModerationView, official: OfficialView, notices: NoticesView, reports: ReportsView, ranking: RankingView, invites: InviteCodesView, audit: AuditLogsView };
+const views = { dashboard: DashboardView, moderation: ModerationView, users: UsersView, appeals: AppealsView, official: OfficialView, notices: NoticesView, reports: ReportsView, ranking: RankingView, invites: InviteCodesView, audit: AuditLogsView, team: TeamView };
+const visibleNav = computed(() => nav.filter((item) => roleNav[role.value].includes(item.key)));
 const currentView = computed(() => views[active.value]);
-const current = computed(() => nav.find((item) => item.key === active.value)!);
+const current = computed(() => (visibleNav.value.find((item) => item.key === active.value) || visibleNav.value[0])!);
+const canNotify = computed(() => role.value !== 'content_reviewer');
 
-onMounted(() => {
+onMounted(async () => {
   authed.value = hasToken();
-  if (authed.value) startBadgePolling();
+  if (!authed.value) return;
+  try {
+    role.value = (await getAdminMe()).role;
+    if (!roleNav[role.value].includes(active.value)) active.value = 'dashboard';
+    startBadgePolling();
+  } catch {
+    authed.value = false;
+    clearToken();
+  }
 });
 
 onErrorCaptured((error, _instance, info) => {
@@ -67,7 +91,16 @@ function formatBadge(count: number): string {
 async function refreshBadges() {
   if (!hasToken()) return;
   try {
-    const [dashboard, official, reports] = await Promise.all([getDashboard(), getOfficialAccounts(), getReports()]);
+    const dashboard = await getDashboard();
+    let official: Array<{ status: string }> = [];
+    let reports: Array<{ status: string }> = [];
+    if (role.value === 'platform_admin') {
+      [official, reports] = await Promise.all([getOfficialAccounts(), getReports()]);
+    } else if (role.value === 'content_reviewer') {
+      reports = await getReports();
+    } else {
+      official = await getOfficialAccounts();
+    }
     badgeCounts.value = {
       moderation: Number(dashboard.stats.pending || 0),
       official: official.filter((item) => item.status !== 'active').length,
@@ -87,7 +120,9 @@ function startBadgePolling() {
 async function signIn() {
   loginError.value = '';
   try {
-    await adminLogin(login.value.email, login.value.password, login.value.totp);
+    const session = await adminLogin(login.value.email, login.value.password, login.value.totp);
+    role.value = session.role;
+    active.value = 'dashboard';
     authed.value = true;
     startBadgePolling();
   } catch (error) {
@@ -97,6 +132,7 @@ async function signIn() {
 
 function signOut() {
   authed.value = false;
+  role.value = 'platform_admin';
   if (badgeTimer) window.clearInterval(badgeTimer);
   adminLogout().catch(() => clearToken());
 }
@@ -115,7 +151,7 @@ function reloadPage() {
         <h1>把今天的小事，<br />认真地接下来。</h1>
         <p>内容审核、官方通知、热度配置。所有判断留痕，所有操作可回看。</p>
       </div>
-      <div class="login-foot">2C4G · 单校版 · v0.1.0</div>
+      <div class="login-foot">2C4G · 单校版 · v0.2.0</div>
     </div>
     <div class="login-panel">
       <div class="login-form">
@@ -154,7 +190,7 @@ function reloadPage() {
       <div class="side-label">WORKSPACE / 单校版</div>
       <nav class="nav">
         <button
-          v-for="item in nav"
+          v-for="item in visibleNav"
           :key="item.key"
           class="nav-item"
           :class="{ active: active === item.key }"
@@ -177,7 +213,7 @@ function reloadPage() {
             <p>小何 · 内容安全</p>
           </div>
         </div>
-        <div class="side-meta">v0.1.0 · 2C4G MVP</div>
+        <div class="side-meta">v0.2.0 · 单校运营台</div>
       </div>
     </aside>
 
@@ -189,8 +225,8 @@ function reloadPage() {
         </div>
         <div class="top-actions">
           <span class="live"><i></i> 数据实时</span>
-          <button class="ghost-btn" @click="active = 'notices'">＋ 发通知</button>
-          <button class="avatar-btn" title="退出登录" @click="signOut">何</button>
+          <button v-if="canNotify" class="ghost-btn" @click="active = 'notices'">＋ 发通知</button>
+          <button class="avatar-btn" title="退出登录" @click="signOut">{{ role === 'school_reviewer' ? '校' : role === 'content_reviewer' ? '审' : '管' }}</button>
         </div>
       </header>
 
@@ -202,7 +238,7 @@ function reloadPage() {
           <p>已保护管理台其他页面；刷新后会重新加载最新版本。</p>
           <button class="btn btn-primary" @click="reloadPage">刷新页面</button>
         </div>
-        <component v-else :is="currentView" :key="active" @go="(key: ViewKey) => (active = key)" @changed="refreshBadges" />
+        <component v-else :is="currentView" :key="active" :admin-role="role" @go="(key: ViewKey) => (active = key)" @changed="refreshBadges" />
       </div>
     </main>
   </div>

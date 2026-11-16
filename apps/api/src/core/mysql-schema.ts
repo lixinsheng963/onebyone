@@ -46,6 +46,7 @@ export const MYSQL_SCHEMA_STATEMENTS: string[] = [
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     public_id VARCHAR(96) NOT NULL,
     email VARCHAR(191) NOT NULL,
+    display_name VARCHAR(64) NOT NULL DEFAULT '',
     password_hash VARCHAR(255) NOT NULL,
     totp_secret_enc VARCHAR(255) NULL,
     role VARCHAR(24) NOT NULL DEFAULT 'admin',
@@ -248,6 +249,25 @@ export const MYSQL_SCHEMA_STATEMENTS: string[] = [
     KEY idx_reports_target (target_type, target_id)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
 
+  `CREATE TABLE IF NOT EXISTS appeals (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    public_id VARCHAR(96) NOT NULL,
+    user_id BIGINT UNSIGNED NOT NULL,
+    target_type VARCHAR(16) NOT NULL,
+    target_id BIGINT UNSIGNED NOT NULL,
+    reason VARCHAR(1000) NOT NULL,
+    status VARCHAR(24) NOT NULL DEFAULT 'pending',
+    decision_reason VARCHAR(255) NULL,
+    handled_by VARCHAR(128) NULL,
+    handled_at DATETIME(3) NULL,
+    created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_appeals_public_id (public_id),
+    KEY idx_appeals_status (status, created_at),
+    KEY idx_appeals_user (user_id, created_at),
+    KEY idx_appeals_target (target_type, target_id)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+
   `CREATE TABLE IF NOT EXISTS moderation_cases (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     public_id VARCHAR(96) NOT NULL,
@@ -259,6 +279,7 @@ export const MYSQL_SCHEMA_STATEMENTS: string[] = [
     machine_labels JSON NULL,
     labels JSON NULL,
     evidence JSON NULL,
+    reviews_json JSON NULL,
     reason_text VARCHAR(500) NULL,
     assigned_to BIGINT UNSIGNED NULL,
     decision VARCHAR(24) NULL,
@@ -280,11 +301,17 @@ export const MYSQL_SCHEMA_STATEMENTS: string[] = [
     user_id BIGINT UNSIGNED NOT NULL,
     school_id VARCHAR(64) NOT NULL DEFAULT 'campus',
     org_name VARCHAR(128) NOT NULL,
+    org_id VARCHAR(64) NULL,
     authorization_file_key VARCHAR(512) NULL,
+    authorization_file_name VARCHAR(255) NULL,
+    authorization_mime VARCHAR(100) NULL,
+    authorization_size INT UNSIGNED NULL,
     scope JSON NULL,
     status VARCHAR(24) NOT NULL DEFAULT 'pending_school',
     school_reviewed_by BIGINT UNSIGNED NULL,
+    school_reviewed_at DATETIME(3) NULL,
     reviewed_by BIGINT UNSIGNED NULL,
+    platform_reviewed_at DATETIME(3) NULL,
     effective_at DATETIME(3) NULL,
     expires_at DATETIME(3) NULL,
     last_reviewed_at DATETIME(3) NULL,
@@ -397,7 +424,18 @@ export async function ensureMysqlSchema(pool: Pool): Promise<void> {
       ['reports', 'ai_reason', '`ai_reason` VARCHAR(500) NULL AFTER `ai_decision`'],
       ['reports', 'ai_evidence', '`ai_evidence` JSON NULL AFTER `ai_reason`'],
       ['reports', 'ai_confidence', '`ai_confidence` DECIMAL(4,2) NULL AFTER `ai_evidence`'],
-      ['reports', 'ai_checked_at', '`ai_checked_at` DATETIME(3) NULL AFTER `ai_confidence`']
+      ['reports', 'ai_checked_at', '`ai_checked_at` DATETIME(3) NULL AFTER `ai_confidence`'],
+      ['moderation_cases', 'reviews_json', '`reviews_json` JSON NULL AFTER `evidence`'],
+      ['admin_users', 'display_name', '`display_name` VARCHAR(64) NOT NULL DEFAULT \'\' AFTER `email`'],
+      ['users', 'muted_until', '`muted_until` DATETIME(3) NULL AFTER `status`'],
+      ['users', 'status_reason', '`status_reason` VARCHAR(255) NULL AFTER `muted_until`'],
+      ['users', 'deleted_at', '`deleted_at` DATETIME(3) NULL AFTER `status_reason`'],
+      ['official_accounts', 'org_id', '`org_id` VARCHAR(64) NULL AFTER `org_name`'],
+      ['official_accounts', 'authorization_file_name', '`authorization_file_name` VARCHAR(255) NULL AFTER `authorization_file_key`'],
+      ['official_accounts', 'authorization_mime', '`authorization_mime` VARCHAR(100) NULL AFTER `authorization_file_name`'],
+      ['official_accounts', 'authorization_size', '`authorization_size` INT UNSIGNED NULL AFTER `authorization_mime`'],
+      ['official_accounts', 'school_reviewed_at', '`school_reviewed_at` DATETIME(3) NULL AFTER `school_reviewed_by`'],
+      ['official_accounts', 'platform_reviewed_at', '`platform_reviewed_at` DATETIME(3) NULL AFTER `reviewed_by`']
     ];
     for (const [table, column, definition] of columns) {
       const [existing] = await connection.query<any[]>(
@@ -411,6 +449,26 @@ export async function ensureMysqlSchema(pool: Pool): Promise<void> {
     await connection.query(
       'INSERT IGNORE INTO schema_migrations (version) VALUES (?)',
       ['2026-11-13-reports-ai-invite-display-v2']
+    );
+    await connection.query(
+      'INSERT IGNORE INTO schema_migrations (version) VALUES (?)',
+      ['2026-11-16-admin-rbac-v3']
+    );
+    await connection.query(
+      'INSERT IGNORE INTO schema_migrations (version) VALUES (?)',
+      ['2026-11-16-official-authorization-v4']
+    );
+    await connection.query(
+      'INSERT IGNORE INTO schema_migrations (version) VALUES (?)',
+      ['2026-11-16-user-governance-v5']
+    );
+    await connection.query(
+      'INSERT IGNORE INTO schema_migrations (version) VALUES (?)',
+      ['2026-11-16-appeals-v6']
+    );
+    await connection.query(
+      'INSERT IGNORE INTO schema_migrations (version) VALUES (?)',
+      ['2026-11-16-double-review-v7']
     );
     await connection.query('INSERT IGNORE INTO notice_slot (id, active_notice_id) VALUES (1, NULL)');
   } finally {

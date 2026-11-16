@@ -1,0 +1,22 @@
+[Unit]
+Description=Campus community API
+After=network.target mysql.service redis-server.service
+
+[Service]
+Type=simple
+User=campus
+Group=campus
+WorkingDirectory=/opt/campus/apps/api
+EnvironmentFile=/opt/campus/apps/api/.env
+ExecStart=/usr/bin/node dist/main.js
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/opt/campus/apps/api/uploads /opt/campus/apps/api/storage /opt/campus/apps/api/data
+LimitNOFILE=65535
+
+[Install]
+WantedBy=multi-user.target

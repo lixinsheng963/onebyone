@@ -1,4 +1,52 @@
 export type Risk = 'P0' | 'P1' | 'P2' | 'P3';
+export type AdminRole = 'platform_admin' | 'content_reviewer' | 'school_reviewer';
+
+export interface AdminIdentity {
+  id: number;
+  publicId?: string;
+  email: string;
+  displayName: string;
+  role: AdminRole;
+  status: 'active' | 'disabled';
+  schoolId?: string;
+  orgId?: string;
+}
+
+export interface AdminOperator extends AdminIdentity {
+  reviewerStatus?: string;
+}
+
+export interface AdminUser {
+  id: string;
+  nickname: string;
+  avatar: string;
+  role: string;
+  level: string;
+  isOfficial: boolean;
+  officialOrg?: string;
+  status: 'active' | 'muted' | 'banned' | 'deleted';
+  mutedUntil?: string;
+  statusReason?: string;
+  createdAt: string;
+  postCount: number;
+  commentCount: number;
+}
+
+export interface Appeal {
+  id: string;
+  userId: string;
+  targetType: 'post' | 'comment' | 'user';
+  targetId: string;
+  reason: string;
+  status: 'pending' | 'approved' | 'rejected';
+  decisionReason?: string;
+  handledBy?: string;
+  handledAt?: string;
+  createdAt: string;
+  user?: AdminUser;
+  targetText?: string;
+  targetStatus?: string;
+}
 
 export interface CasePost {
   id: string;
@@ -11,6 +59,14 @@ export interface CasePost {
   createdAt: string;
 }
 
+export interface ModerationReview {
+  reviewerId: string;
+  reviewerName: string;
+  decision: 'approved' | 'rejected';
+  reason?: string;
+  createdAt: string;
+}
+
 export interface ModerationCase {
   id: string;
   risk: Risk;
@@ -19,6 +75,10 @@ export interface ModerationCase {
   evidence: string[];
   status: 'pending' | 'approved' | 'rejected';
   post: CasePost;
+  reviews?: ModerationReview[];
+  reviewConflict?: boolean;
+  decidedBy?: string;
+  decidedAt?: string;
 }
 
 export interface Notice {
@@ -35,10 +95,17 @@ export interface Notice {
 export interface OfficialAccount {
   id: string;
   orgName: string;
+  orgId?: string;
   owner: string;
   scope: string[];
-  status: 'active' | 'pending_school' | 'pending_platform' | 'suspended';
+  status: 'active' | 'pending_school' | 'pending_platform' | 'suspended' | 'expired';
   authorization: string;
+  authorizationFileName?: string;
+  authorizationSize?: number;
+  expiresAt?: string;
+  effectiveAt?: string;
+  schoolReviewedBy?: string;
+  platformReviewedBy?: string;
 }
 
 export interface ReportAi {

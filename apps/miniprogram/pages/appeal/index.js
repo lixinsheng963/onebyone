@@ -4,11 +4,13 @@ Page({
   data: {
     reason: '',
     submitting: false,
-    targetId: ''
+    targetId: '',
+    targetType: 'post'
   },
 
   onLoad(options) {
-    this.setData({ targetId: options.id || '' });
+    const targetType = ['post', 'comment', 'user'].includes(options.type) ? options.type : 'post';
+    this.setData({ targetId: options.id || '', targetType });
   },
 
   onInput(e) {
@@ -25,7 +27,11 @@ Page({
     }
     this.setData({ submitting: true });
     try {
-      await api.submitAppeal({ targetId: this.data.targetId, reason: this.data.reason.trim() });
+      await api.submitAppeal({
+        targetId: this.data.targetId,
+        targetType: this.data.targetType,
+        reason: this.data.reason.trim()
+      });
       wx.showModal({
         title: '已提交申诉',
         content: '24 小时内由另一位审核员复核，结果会通过通知告诉你。',

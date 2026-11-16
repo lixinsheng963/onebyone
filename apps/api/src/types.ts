@@ -1,5 +1,18 @@
 export type Risk = 'P0' | 'P1' | 'P2' | 'P3';
 
+export type AdminRole = 'platform_admin' | 'content_reviewer' | 'school_reviewer';
+
+export interface AdminIdentity {
+  id: number;
+  publicId?: string;
+  email: string;
+  displayName: string;
+  role: AdminRole;
+  status: 'active' | 'disabled';
+  schoolId?: string;
+  orgId?: string;
+}
+
 export interface User {
   id: string;
   publicId: string;
@@ -10,8 +23,42 @@ export interface User {
   level: 'L0' | 'L1' | 'L2' | 'L3' | 'L4';
   isOfficial: boolean;
   officialOrg?: string;
+  status?: 'active' | 'muted' | 'banned' | 'deleted';
+  mutedUntil?: string;
+  statusReason?: string;
+  deletedAt?: string;
   createdAt: string;
 }
+
+export interface AdminUserView {
+  id: string;
+  nickname: string;
+  avatar: string;
+  role: User['role'];
+  level: User['level'];
+  isOfficial: boolean;
+  officialOrg?: string;
+  status: 'active' | 'muted' | 'banned' | 'deleted';
+  mutedUntil?: string;
+  statusReason?: string;
+  createdAt: string;
+  postCount: number;
+  commentCount: number;
+}
+
+export interface Appeal {
+  id: string;
+  userId: string;
+  targetType: 'post' | 'comment' | 'user';
+  targetId: string;
+  reason: string;
+  status: 'pending' | 'approved' | 'rejected';
+  decisionReason?: string;
+  handledBy?: string;
+  handledAt?: string;
+  createdAt: string;
+}
+
 
 export interface Media {
   id: string;
@@ -22,6 +69,9 @@ export interface Media {
   objectKey?: string;
   ownerId?: string;
   storage?: 'local' | 'cos';
+  safetyStatus?: 'safe' | 'blocked' | 'unchecked';
+  safetyLabel?: string;
+  safetyTraceId?: string;
 }
 
 export interface Post {
@@ -112,6 +162,7 @@ export interface Report {
   detail?: string;
   status: 'pending' | 'resolved' | 'rejected';
   ai?: ReportAi;
+  handledById?: string;
   handledAt?: string;
   createdAt: string;
 }
@@ -132,6 +183,14 @@ export interface Notification {
   createdAt: string;
 }
 
+export interface ModerationReview {
+  reviewerId: string;
+  reviewerName: string;
+  decision: 'approved' | 'rejected';
+  reason?: string;
+  createdAt: string;
+}
+
 export interface ModerationCase {
   id: string;
   targetType: 'post' | 'comment';
@@ -144,6 +203,8 @@ export interface ModerationCase {
   createdAt: string;
   decidedBy?: string;
   decidedAt?: string;
+  reviews?: ModerationReview[];
+  reviewConflict?: boolean;
 }
 
 export interface Topic {
@@ -157,9 +218,22 @@ export interface OfficialAccount {
   id: string;
   userId: string;
   orgName: string;
+  orgId?: string;
+  schoolId: string;
   scope: string[];
-  status: 'pending_school' | 'pending_platform' | 'active' | 'suspended';
+  status: 'pending_school' | 'pending_platform' | 'active' | 'suspended' | 'expired';
   authorizationFile?: string;
+  authorizationFileName?: string;
+  authorizationMime?: string;
+  authorizationSize?: number;
+  schoolReviewedBy?: string;
+  schoolReviewedById?: number;
+  schoolReviewedAt?: string;
+  platformReviewedBy?: string;
+  platformReviewedById?: number;
+  platformReviewedAt?: string;
+  effectiveAt?: string;
+  expiresAt?: string;
   createdAt: string;
 }
 

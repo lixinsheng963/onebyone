@@ -72,6 +72,11 @@ function logout() {
   if (app) app.setUser(null);
 }
 
+function deleteAccount() {
+  if (!config.useRemote) return Promise.resolve({ deleted: true });
+  return request('/me', 'DELETE');
+}
+
 function getUser() {
   return wx.getStorageSync('campus_user') || null;
 }
@@ -274,6 +279,7 @@ module.exports = {
   login,
   redeem,
   logout,
+  deleteAccount,
   getUser,
   getFeed,
   getPost,

@@ -54,18 +54,27 @@ async function loginUser() {
   return result.data.token;
 }
 
-async function loginAdmin() {
+function currentTotp() {
   const secret = process.env.ADMIN_TOTP_SECRET;
-  const totp = secret
-    ? generateSync({ secret })
-    : (process.env.ADMIN_TOTP || '');
+  return secret ? generateSync({ secret }) : (process.env.ADMIN_TOTP || '');
+}
+
+async function loginAdmin() {
   const result = await api('/admin/auth/login', {
     method: 'POST',
     body: {
       email: process.env.ADMIN_EMAIL,
       password: process.env.ADMIN_PASSWORD,
-      totp
+      totp: currentTotp()
     }
+  });
+  return result.data.token;
+}
+
+async function loginReviewer(email, password) {
+  const result = await api('/admin/auth/login', {
+    method: 'POST',
+    body: { email, password, totp: currentTotp() }
   });
   return result.data.token;
 }
@@ -130,6 +139,21 @@ async function createPhase() {
     method: 'POST', adminToken,
     body: { decision: 'rejected', reason: 'E2E 管理测试：评论内容违规' }
   });
+  const reviewerEmail = `e2e-review-${Date.now()}@campus.local`;
+  const reviewerPassword = 'E2EReviewerPass2026!';
+  const reviewer = (await api('/admin/operators', {
+    method: 'POST', adminToken,
+    body: { email: reviewerEmail, password: reviewerPassword, displayName: 'E2E复核员', role: 'content_reviewer' }
+  })).data;
+  const reviewerToken = await loginReviewer(reviewerEmail, reviewerPassword);
+  await api(`/admin/moderation/${moderationCase.id}/decision`, {
+    method: 'POST', adminToken: reviewerToken,
+    body: { decision: 'rejected', reason: 'E2E 管理测试：第二审核员确认违规' }
+  });
+  await api(`/admin/operators/${reviewer.id}/revoke`, { method: 'POST', adminToken });
+  const finalizedQueue = (await api('/admin/moderation/queue', { adminToken })).data;
+  const finalizedCase = finalizedQueue.find((item) => item.id === moderationCase.id);
+  assert(finalizedCase?.status === 'rejected', `double review status ${finalizedCase?.status}`);
 
   const report = (await api('/reports', {
     method: 'POST', token: userToken,
@@ -153,9 +177,7 @@ async function createPhase() {
   const official = officialList.find((item) => item.id === 'oa_club') || officialList[0];
   assert(!!official, 'official account missing');
   const originalOfficialStatus = official.status;
-  await api(`/admin/official-accounts/${official.id}/review`, {
-    method: 'POST', adminToken, body: { status: 'active' }
-  });
+  assert(originalOfficialStatus === 'active', 'seed official account must be active');
 
   const originalRanking = (await api('/admin/ranking/config', { adminToken })).data;
   const modifiedRanking = { ...originalRanking, likeWeight: Number((Number(originalRanking.likeWeight) + 0.01).toFixed(4)) };
@@ -244,9 +266,6 @@ async function verifyPhase() {
   assert(post?.status === 'published', 'test post missing after restart');
 
   await api('/admin/ranking/config', { method: 'PUT', adminToken, body: state.originalRanking });
-  await api(`/admin/official-accounts/${state.officialId}/review`, {
-    method: 'POST', adminToken, body: { status: state.originalOfficialStatus }
-  });
   await api(`/posts/${state.postId}`, { method: 'DELETE', token: userToken });
   await db.query('DELETE FROM notices WHERE public_id = ?', [state.noticeId]);
 

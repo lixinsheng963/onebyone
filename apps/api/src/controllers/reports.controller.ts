@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Post, Req, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, Body, Controller, ForbiddenException, Get, Post, Req, UnauthorizedException } from '@nestjs/common';
 import type { FastifyRequest } from 'fastify';
 import { assertEnum, assertId, ok, optionalText, requireText, tokenFrom } from '../common';
 import { DeepSeekService } from '../core/deepseek.service';
@@ -47,6 +47,8 @@ export class ReportsController {
       return ok(this.store.getAdminReport(report.id) || report);
     } catch (error) {
       const message = (error as Error).message;
+      if (message === 'ACCOUNT_MUTED') throw new ForbiddenException('账号已被禁言，暂时无法举报');
+      if (message === 'ACCOUNT_DISABLED') throw new ForbiddenException('账号已被停用');
       if (message === 'AUTH_REQUIRED') throw new UnauthorizedException('请先登录');
       if (message === 'NOT_FOUND') throw new BadRequestException('举报对象不存在');
       throw error;
@@ -55,13 +57,31 @@ export class ReportsController {
 
   @Post('appeals')
   appeal(@Body() body: any, @Req() req: FastifyRequest) {
-    if (!this.store.getUserByToken(tokenFrom(req))) throw new UnauthorizedException('请先登录');
+    const token = tokenFrom(req);
+    if (!token) throw new UnauthorizedException('请先登录');
+    const targetType = assertEnum(body?.targetType, ['post', 'comment', 'user'] as const, '申诉对象');
+    const targetId = assertId(body?.targetId, '申诉对象');
     const reason = requireText(body?.reason, 1000, '申诉理由');
-    return ok({
-      publicId: `appeal_${Date.now()}`,
-      status: 'pending',
-      message: '申诉已提交，24 小时内由另一位审核员复核',
-      reason
-    });
+    try {
+      return ok(this.store.createAppeal(token, { targetType, targetId, reason }));
+    } catch (error) {
+      const message = (error as Error).message;
+      if (message === 'AUTH_REQUIRED') throw new UnauthorizedException('请先登录');
+      if (message === 'NOT_FOUND') throw new BadRequestException('申诉对象不存在');
+      if (message === 'FORBIDDEN') throw new ForbiddenException('只能申诉自己的内容');
+      if (message === 'NOT_APPEALABLE') throw new BadRequestException('该内容当前不可申诉');
+      if (message === 'APPEAL_DUPLICATE') throw new BadRequestException('该内容已有待处理申诉');
+      throw error;
+    }
+  }
+
+  @Get('me/appeals')
+  myAppeals(@Req() req: FastifyRequest) {
+    try {
+      return ok(this.store.getMyAppeals(tokenFrom(req)));
+    } catch (error) {
+      if ((error as Error).message === 'AUTH_REQUIRED') throw new UnauthorizedException('请先登录');
+      throw error;
+    }
   }
 }

@@ -59,7 +59,11 @@ export class PostsController {
       this.wechat.scanText(text, user.openid)
     ]);
     const extra = ai && wechat ? mergeModeration(wechat, ai) : ai || wechat;
-    return ok(this.store.createPost(input, token, extra));
+    try {
+      return ok(this.store.createPost(input, token, extra));
+    } catch (error) {
+      this.mapPostError(error);
+    }
   }
 
   @Post(':publicId/like')
@@ -68,7 +72,7 @@ export class PostsController {
     try {
       return ok(this.store.setLike(publicId, tokenFrom(req), true));
     } catch (error) {
-      this.mapPostError(error);
+      this.mapInteractionError(error);
     }
   }
 
@@ -78,7 +82,7 @@ export class PostsController {
     try {
       return ok(this.store.setLike(publicId, tokenFrom(req), false));
     } catch (error) {
-      this.mapPostError(error);
+      this.mapInteractionError(error);
     }
   }
 
@@ -88,7 +92,7 @@ export class PostsController {
     try {
       return ok(this.store.setFavorite(publicId, tokenFrom(req), true));
     } catch (error) {
-      this.mapPostError(error);
+      this.mapInteractionError(error);
     }
   }
 
@@ -98,7 +102,7 @@ export class PostsController {
     try {
       return ok(this.store.setFavorite(publicId, tokenFrom(req), false));
     } catch (error) {
-      this.mapPostError(error);
+      this.mapInteractionError(error);
     }
   }
 
@@ -153,11 +157,22 @@ export class PostsController {
     }
   }
 
+  private mapInteractionError(error: unknown): never {
+    const message = (error as Error).message;
+    if (message === 'AUTH_REQUIRED') throw new UnauthorizedException('请先登录');
+    if (message === 'NOT_FOUND') throw new NotFoundException('内容不存在');
+    if (message === 'ACCOUNT_MUTED') throw new ForbiddenException('账号已被禁言，暂时无法点赞或收藏');
+    if (message === 'ACCOUNT_DISABLED') throw new ForbiddenException('账号已被停用');
+    throw error as Error;
+  }
+
   private mapPostError(error: unknown): never {
     const message = (error as Error).message;
     if (message === 'AUTH_REQUIRED') throw new UnauthorizedException('请先登录');
     if (message === 'NOT_FOUND') throw new NotFoundException('内容不存在');
     if (message === 'COMMENTS_CLOSED') throw new BadRequestException('该内容已关闭评论');
+    if (message === 'ACCOUNT_MUTED') throw new ForbiddenException('账号已被禁言，暂时无法发布内容');
+    if (message === 'ACCOUNT_DISABLED') throw new ForbiddenException('账号已被停用');
     throw error as Error;
   }
 

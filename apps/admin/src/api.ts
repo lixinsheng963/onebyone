@@ -1,4 +1,4 @@
-import type { AuditLog, HotItem, InviteCode, ModerationCase, Notice, OfficialAccount, RankingConfig, Report } from './types';
+import type { AdminIdentity, AdminOperator, AdminUser, Appeal, AuditLog, HotItem, InviteCode, ModerationCase, Notice, OfficialAccount, RankingConfig, Report } from './types';
 
 const BASE = import.meta.env.VITE_API_BASE || '/api/v1';
 const TOKEN_KEY = 'campus_admin_token';
@@ -13,10 +13,11 @@ export function clearToken() {
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = sessionStorage.getItem(TOKEN_KEY);
+  const isForm = options.body instanceof FormData;
   const response = await fetch(`${BASE}${path}`, {
     ...options,
     headers: {
-      'content-type': 'application/json',
+      ...(isForm ? {} : { 'content-type': 'application/json' }),
       ...(token ? { 'x-admin-token': token } : {}),
       ...(options.headers || {})
     }
@@ -38,12 +39,64 @@ export async function adminLogout() {
 }
 
 export async function adminLogin(email: string, password: string, totp: string) {
-  const data = await request<{ token: string; user: string }>('/admin/auth/login', {
+  const data = await request<{ token: string; user: string; role: AdminIdentity['role']; schoolId?: string; orgId?: string }>('/admin/auth/login', {
     method: 'POST',
     body: JSON.stringify({ email, password, totp })
   });
   sessionStorage.setItem(TOKEN_KEY, data.token);
   return data;
+}
+
+export async function getAdminMe(): Promise<AdminIdentity> {
+  return request<AdminIdentity>('/admin/me');
+}
+
+export async function getOperators(): Promise<AdminOperator[]> {
+  return request<AdminOperator[]>('/admin/operators');
+}
+
+export async function createOperator(input: {
+  email: string;
+  password: string;
+  displayName?: string;
+  role: 'school_reviewer' | 'content_reviewer';
+  schoolId?: string;
+  orgId?: string;
+}) {
+  return request<AdminOperator>('/admin/operators', {
+    method: 'POST',
+    body: JSON.stringify(input)
+  });
+}
+
+export async function revokeOperator(id: number) {
+  return request<AdminOperator>(`/admin/operators/${id}/revoke`, { method: 'POST' });
+}
+
+export async function getUsers(): Promise<AdminUser[]> {
+  return request<AdminUser[]>('/admin/users');
+}
+
+export async function setUserStatus(
+  userId: string,
+  status: AdminUser['status'],
+  input: { mutedUntil?: string; reason?: string } = {}
+) {
+  return request<AdminUser>(`/admin/users/${encodeURIComponent(userId)}/status`, {
+    method: 'POST',
+    body: JSON.stringify({ status, ...input })
+  });
+}
+
+export async function getAppeals(): Promise<Appeal[]> {
+  return request<Appeal[]>('/admin/appeals');
+}
+
+export async function decideAppeal(appealId: string, status: 'approved' | 'rejected', reason?: string) {
+  return request<Appeal>(`/admin/appeals/${encodeURIComponent(appealId)}/decision`, {
+    method: 'POST',
+    body: JSON.stringify({ status, reason })
+  });
 }
 
 function clock(value?: string) {
@@ -103,7 +156,7 @@ export async function getQueue(risk?: string): Promise<ModerationCase[]> {
 }
 
 export async function decideCase(caseId: string, decision: 'approved' | 'rejected', reason: string) {
-  return request(`/admin/moderation/${caseId}/decision`, {
+  return request<ModerationCase>(`/admin/moderation/${caseId}/decision`, {
     method: 'POST',
     body: JSON.stringify({ decision, reason })
   });
@@ -113,10 +166,17 @@ function mapOfficial(item: any): OfficialAccount {
   return {
     id: item.id,
     orgName: item.orgName,
+    orgId: item.orgId,
     owner: item.userId || '未绑定',
     scope: Array.isArray(item.scope) ? item.scope : [],
     status: item.status,
-    authorization: item.authorizationFile || '授权文件待上传'
+    authorization: item.authorizationFile ? (item.authorizationFileName || '授权文件已上传') : '授权文件待上传',
+    authorizationFileName: item.authorizationFileName,
+    authorizationSize: item.authorizationSize,
+    expiresAt: item.expiresAt,
+    effectiveAt: item.effectiveAt,
+    schoolReviewedBy: item.schoolReviewedBy,
+    platformReviewedBy: item.platformReviewedBy
   };
 }
 
@@ -130,6 +190,29 @@ export async function reviewOfficial(accountId: string, status: string) {
     method: 'POST',
     body: JSON.stringify({ status })
   });
+}
+
+export async function createOfficialAccount(input: { orgName: string; orgId?: string; scope: string[]; expiresAt: string }) {
+  return request('/admin/official-accounts', { method: 'POST', body: JSON.stringify(input) });
+}
+
+export async function updateOfficialAccount(accountId: string, input: { orgName?: string; orgId?: string; scope?: string[]; expiresAt?: string }) {
+  return request(`/admin/official-accounts/${accountId}`, { method: 'PUT', body: JSON.stringify(input) });
+}
+
+export async function uploadOfficialAuthorization(accountId: string, file: File) {
+  const form = new FormData();
+  form.append('file', file);
+  return request(`/admin/official-accounts/${accountId}/authorization`, { method: 'POST', body: form });
+}
+
+export async function downloadOfficialAuthorization(accountId: string): Promise<Blob> {
+  const token = sessionStorage.getItem(TOKEN_KEY);
+  const response = await fetch(`${BASE}/admin/official-accounts/${accountId}/authorization`, {
+    headers: token ? { 'x-admin-token': token } : {}
+  });
+  if (!response.ok) throw new Error(`授权文件下载失败（${response.status}）`);
+  return response.blob();
 }
 
 function mapNotice(item: any): Notice {

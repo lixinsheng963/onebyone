@@ -1,5 +1,19 @@
 # 更新记录 / Changelog
 
+## v0.3.0-rc.3 — 2026-11-16
+
+### 修复
+
+- 修复阿里云一键部署脚本会写入 `ALLOW_DEMO_LOGIN=true`、HTTP `PUBLIC_BASE_URL`、空微信参数，导致生产 API 拒绝启动或无法真机登录的问题。
+- 一键部署现在强制要求备案域名、TLS 证书、正式微信 AppID/Secret；生成 `NODE_ENV=production`、`ALLOW_DEMO_LOGIN=false`、HTTPS/CORS、`TRUST_PROXY=true`、`RATE_LIMIT_MAX=300`。
+- 一键部署改为使用 HTTPS Nginx 模板，并在启动 API 前执行生产预检、启动后执行公网 `/readyz` 预检。
+- Nginx 模板增加 `/readyz` 反代。
+
+### 验证
+
+- 安装器与预检脚本 `bash -n` 通过；生产预检对开发 `.env` 正确拒绝。
+- `/readyz` 正常 200、Redis 断开 503；`security-smoke` 17 项通过。
+
 ## v0.3.0-rc.2 — 2026-11-16
 
 ### 新增

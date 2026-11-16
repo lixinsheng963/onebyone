@@ -19,13 +19,36 @@ if [[ ! -f "$APP_DIR/package.json" ]]; then
   exit 1
 fi
 
-PUBLIC_IP="$(curl -fsS https://api.ipify.org || true)"
-if [[ -z "$PUBLIC_IP" ]]; then
-  read -r -p "未能自动获取公网 IP，请手动输入： " PUBLIC_IP
+DOMAIN="${DOMAIN:-}"
+if [[ -z "$DOMAIN" ]]; then
+  read -r -p "已备案域名（必须，例如 campus.example.com）： " DOMAIN
 fi
-read -r -p "域名（没有域名直接回车，将使用公网 IP ${PUBLIC_IP}）： " DOMAIN
-BASE_URL="http://${DOMAIN:-$PUBLIC_IP}"
+if [[ -z "$DOMAIN" ]]; then
+  echo "生产部署必须使用已备案域名和 HTTPS；已停止。" >&2
+  exit 1
+fi
+BASE_URL="https://${DOMAIN}"
+CERT_FULLCHAIN="${CERT_FULLCHAIN:-/etc/letsencrypt/live/${DOMAIN}/fullchain.pem}"
+CERT_KEY="${CERT_KEY:-/etc/letsencrypt/live/${DOMAIN}/privkey.pem}"
+if [[ ! -f "$CERT_FULLCHAIN" || ! -f "$CERT_KEY" ]]; then
+  echo "未找到 TLS 证书：$CERT_FULLCHAIN / $CERT_KEY" >&2
+  echo "请先签发证书，或通过 CERT_FULLCHAIN/CERT_KEY 指定路径。" >&2
+  exit 1
+fi
 ADMIN_EMAIL="${ADMIN_EMAIL:-admin@campus.local}"
+WX_APPID="${WX_APPID:-}"
+WX_SECRET="${WX_SECRET:-}"
+if [[ -z "$WX_APPID" ]]; then
+  read -r -p "正式微信小程序 AppID： " WX_APPID
+fi
+if [[ -z "$WX_SECRET" ]]; then
+  read -r -s -p "正式微信小程序 AppSecret： " WX_SECRET
+  echo
+fi
+if [[ -z "$WX_APPID" || -z "$WX_SECRET" ]]; then
+  echo "生产环境必须配置 WX_APPID/WX_SECRET；已停止。" >&2
+  exit 1
+fi
 
 rand_hex() { openssl rand -hex "$1"; }
 MYSQL_PASSWORD="$(rand_hex 16)"
@@ -99,11 +122,13 @@ NODE_ENV=production
 PORT=3000
 DATA_MODE=mysql
 AUTO_PUBLISH_SAFE=true
-ALLOW_DEMO_LOGIN=true
+ALLOW_DEMO_LOGIN=false
 INVITE_CODE=${INVITE_CODE}
 PUBLIC_BASE_URL=${BASE_URL}
 APP_BASE_URL=${BASE_URL}
 ADMIN_BASE_URL=${BASE_URL}
+RATE_LIMIT_MAX=300
+TRUST_PROXY=true
 
 MYSQL_HOST=127.0.0.1
 MYSQL_PORT=3306
@@ -124,13 +149,15 @@ ADMIN_SESSION_HOURS=12
 USER_SESSION_TTL_DAYS=30
 SESSION_PEPPER=${SESSION_PEPPER}
 CORS_ORIGINS=${BASE_URL}
-TRUST_PROXY=true
 
-WX_APPID=
-WX_SECRET=
+WX_APPID=${WX_APPID}
+WX_SECRET=${WX_SECRET}
 DEEPSEEK_API_KEY=
 DEEPSEEK_MODEL=deepseek-v4.1-flash
 DEEPSEEK_THINKING=false
+IMAGE_SAFETY_URL=
+IMAGE_SAFETY_TOKEN=
+IMAGE_SAFETY_TIMEOUT_MS=5000
 
 COS_SECRET_ID=
 COS_SECRET_KEY=
@@ -140,6 +167,12 @@ COS_CDN_BASE=
 EOF
 chown campus:campus "$ENV_FILE"
 chmod 600 "$ENV_FILE"
+
+echo "==> 生产预检（启动前）"
+if ! PREFLIGHT_SKIP_NETWORK=1 bash "$APP_DIR/deploy/scripts/preflight-production.sh" "$ENV_FILE"; then
+  echo "生产预检失败，未启动 API；请修复后重新执行。" >&2
+  exit 1
+fi
 
 echo "==> 配置 systemd"
 cat > /etc/systemd/system/campus-api.service <<EOF
@@ -174,35 +207,15 @@ if ! systemctl is-active --quiet campus-api; then
   exit 1
 fi
 
-echo "==> 配置 Nginx"
-cat > /etc/nginx/conf.d/campus.conf <<EOF
-server {
-    listen 80 default_server;
-    server_name _;
-    root ${ADMIN_DIST};
-    index index.html;
-    client_max_body_size 12m;
-    server_tokens off;
-
-    add_header X-Content-Type-Options nosniff always;
-    add_header X-Frame-Options DENY always;
-    add_header Referrer-Policy strict-origin-when-cross-origin always;
-
-    location /api/ {
-        proxy_pass http://127.0.0.1:3000;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-    }
-    location /uploads/ {
-        proxy_pass http://127.0.0.1:3000;
-    }
-    location / {
-        try_files \$uri \$uri/ /index.html;
-    }
-}
-EOF
+echo "==> 配置 Nginx（HTTPS）"
+mkdir -p /var/www/campus/admin
+cp -r "$ADMIN_DIST"/* /var/www/campus/admin/
+sed \
+  -e "s/campus\.example\.com/${DOMAIN}/g" \
+  -e "s#/etc/nginx/ssl/campus\.fullchain\.pem#${CERT_FULLCHAIN}#g" \
+  -e "s#/etc/nginx/ssl/campus\.key#${CERT_KEY}#g" \
+  -e "s#/var/www/campus/admin#/var/www/campus/admin#g" \
+  "$APP_DIR/deploy/nginx/production.conf" > /etc/nginx/conf.d/campus.conf
 
 # Avoid the stock server block taking the default server.
 rm -f /etc/nginx/conf.d/default.conf
@@ -212,6 +225,11 @@ fi
 nginx -t
 systemctl enable --now nginx
 systemctl restart nginx
+
+if ! bash "$APP_DIR/deploy/scripts/preflight-production.sh" "$ENV_FILE"; then
+  echo "公网预检失败：请检查 DNS、HTTPS 证书、安全组 443 和 Nginx；API 已启动但不要开放流量。" >&2
+  exit 1
+fi
 
 echo
 echo "================ 部署完成 ================"
@@ -225,8 +243,9 @@ echo "MySQL：campus / ${MYSQL_PASSWORD}"
 echo "Redis：${REDIS_PASSWORD}"
 echo
 echo "注意："
-echo "1. 当前是 HTTP；正式环境必须配 HTTPS 后再把后台开放公网。"
-echo "2. 没有域名时，微信真机无法把公网 IP 配成合法请求域名，只能先用开发者工具关闭域名校验测试。"
-echo "3. COS 四项为空时图片会落在本地 ${API_DIR}/uploads；正式环境请填 COS。"
-echo "4. ALLOW_DEMO_LOGIN=true 仅用于首次测试，接入微信 code2Session 后改为 false。"
+echo "1. 已配置 HTTPS；请确认微信后台 request/uploadFile 合法域名包含 ${DOMAIN}。"
+echo "2. 微信正式 AppID 已写入；ALLOW_DEMO_LOGIN=false。"
+echo "3. COS 四项为空时图片会落在本地 ${API_DIR}/uploads；正式环境建议填 COS。"
+echo "4. 图片安全网关 IMAGE_SAFETY_URL 为空时仅人工审核；建议上线前配置。"
 echo "5. 阿里云安全组只开放 22/80/443，禁止开放 3306/6379。"
+echo "6. 以上密码/TOTP 只显示一次，请立即保存并删除终端记录。"

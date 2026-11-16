@@ -4,7 +4,7 @@
 
 ## 版本状态
 
-- 当前版本：`v0.3.0-rc.2`（2026-11-16）
+- 当前版本：`v0.3.0-rc.3`（2026-11-16）
 - 已跑通：小程序核心内容闭环、管理端 11 个栏目、MySQL 规范化持久化、Redis 限流、AI 文本审核/举报复核、邀请码、审计日志、RBAC/学校审核人、官方账号授权链、用户治理、真实注销、申诉、双人复核、图片安全适配器、生产配置校验与压测。
 - **当前是 Release Candidate，尚未完成正式线上部署。** 完整的上线阻断项、外部依赖、测试矩阵和完成定义见 [docs/PRODUCTION-READINESS.md](docs/PRODUCTION-READINESS.md)。
 - 距正式上线主要剩外部依赖与目标服务器验收：备案域名/HTTPS、正式微信 AppID、学校授权材料、图片审核供应商、真实备份恢复演练和真机验收。
@@ -53,13 +53,18 @@ pnpm --filter @campus/admin build
 
 ## 阿里云单机一键部署
 
-项目上传到服务器 `/opt/campus` 后执行：
+项目上传到服务器 `/opt/campus` 后执行。生产安装必须提供已备案域名、TLS 证书和正式微信 AppID/Secret：
 
 ```bash
-sudo bash /opt/campus/deploy/alibaba-oneclick.sh
+cd /opt/campus
+sudo DOMAIN=campus.example.com \
+  CERT_FULLCHAIN=/etc/letsencrypt/live/campus.example.com/fullchain.pem \
+  CERT_KEY=/etc/letsencrypt/live/campus.example.com/privkey.pem \
+  WX_APPID=wx... WX_SECRET=... \
+  bash deploy/alibaba-oneclick.sh
 ```
 
-脚本会安装 Node、pnpm、MySQL、Redis、Nginx，创建数据库/用户，生成 `.env`、TOTP 和密码，构建 API/管理后台，配置 systemd 与 Nginx。脚本未在没有目标服务器的情况下实际执行，首次运行请把报错发回来。
+脚本会安装 Node、pnpm、MySQL、Redis、Nginx，创建数据库/用户，生成 `.env`、TOTP 和密码，构建 API/管理后台，先运行生产预检，再配置 systemd 与 HTTPS Nginx，最后用 `/readyz` 做公网验收。`ALLOW_DEMO_LOGIN` 固定为 `false`；没有域名/证书/微信参数会拒绝执行。首次在生产服务器运行请把预检报错发回来。
 
 ## 安全
 

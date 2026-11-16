@@ -16,5 +16,5 @@ DB_USER="${MYSQL_USER:-campus}"
 DB_HOST="${MYSQL_HOST:-127.0.0.1}"
 DB_PORT="${MYSQL_PORT:-3306}"
 gzip -dc "$backup" | MYSQL_PWD="${MYSQL_PASSWORD:?MYSQL_PASSWORD is required}" \
-  mysql --host="$DB_HOST" --port="$DB_PORT" --user="$DB_USER" "$DB_NAME"
+  mysql --host="$DB_HOST" --port="$DB_PORT" --user="$DB_USER" --protocol=TCP "$DB_NAME"
 echo "restore ok: $backup"

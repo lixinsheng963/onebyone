@@ -16,8 +16,8 @@ stamp="$(date +%Y%m%d-%H%M%S)"
 target="$BACKUP_DIR/${DB_NAME}-${stamp}.sql.gz"
 
 MYSQL_PWD="${MYSQL_PASSWORD:?MYSQL_PASSWORD is required}" \
-  mysqldump --host="$DB_HOST" --port="$DB_PORT" --user="$DB_USER" \
-  --single-transaction --quick --routines --triggers --set-gtid-purged=OFF \
+  mysqldump --host="$DB_HOST" --port="$DB_PORT" --user="$DB_USER" --protocol=TCP \
+  --single-transaction --quick --routines --triggers --no-tablespaces --set-gtid-purged=OFF \
   "$DB_NAME" | gzip -9 > "$target"
 
 gzip -t "$target"

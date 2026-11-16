@@ -24,7 +24,7 @@
 | P0-07 图片内容安全 | 代码完成，生产网关待接 | 可配置同步审核网关；blocked 删除文件并 400，网关异常 503；未配置保持人工 P2；真实供应商 URL/Token 待配置 |
 | P0-08 生产微信登录与 HTTPS | 配置/脚本完成，线上待部署 | production 环境校验、真实 code2Session 分支、Nginx TLS 模板、systemd、环境样例、部署文档；待域名/证书/正式 AppID/服务器 |
 | P0-09 并发与瞬时压力 | 已完成离线压测 | 250/500/1000 请求、50/100 并发均 0 错误；见第 4 节；生产需在目标服务器复测 |
-| P0-10 备份、监控与 Runbook | 脚本完成，恢复演练待做 | MySQL 备份/恢复/健康检查脚本、部署文档；需在目标服务器执行一次真实恢复演练并接入监控告警 |
+| P0-10 备份、监控与 Runbook | 已完成本地恢复演练 | MySQL 备份/恢复/健康检查脚本、部署文档；本地 341,631 字节备份恢复后 users/posts/comments 计数一致（5/17/11）；目标服务器监控告警待接 |
 
 ## 3. 外部依赖/上线前必须准备
 
@@ -51,6 +51,7 @@
 | 安全 smoke | `node tools/security-smoke.mjs` | 17 项通过 |
 | 管理端页面 | Playwright 11 个导航、30 轮快速切换 | 无空白/console/pageerror |
 | 压测 | `tools/load-test.mjs` 250/50、500/100、1000/100 | 全部 200，0 错误；1000/100 rps≈1970，p95≈78ms，p99≈91ms |
+| 备份恢复 | `mysqldump` → 临时库恢复 → 计数核对 | 341,631 字节；25 张表；users/posts/comments 5/17/11 一致 |
 | 生产模式 | 隔离 3099 + production 环境变量 | 启动成功、MySQL normalized、Redis connected、health 200 |
 | 生产校验拒绝 | 缺失生产变量时启动 | 按预期 exit 1 并列出缺失项 |
 

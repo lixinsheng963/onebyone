@@ -249,6 +249,17 @@ export class StoreService extends CampusStore implements OnModuleDestroy {
     }
   }
 
+  async checkDatabase(): Promise<boolean> {
+    if ((process.env.DATA_MODE || 'file') !== 'mysql') return true;
+    if (!this.pool) return false;
+    try {
+      await this.pool.query('SELECT 1');
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   async onModuleDestroy(): Promise<void> {
     if (this.persistTimer) clearTimeout(this.persistTimer);
     try {

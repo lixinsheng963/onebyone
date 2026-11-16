@@ -21,12 +21,22 @@ node -e "const {generateSecret}=require('otplib'); console.log(generateSecret())
 
 启动前 API 会自动建表/迁移。生产模式缺少必填项会拒绝启动。
 
+先跑生产预检；它会检查环境变量、Node/MySQL/Redis/Nginx、磁盘、HTTPS 和 readiness，失败会阻止上线：
+
+```bash
+chmod +x deploy/scripts/*.sh
+sudo ./deploy/scripts/preflight-production.sh /opt/campus/apps/api/.env
+```
+
 ```bash
 sudo cp deploy/systemd/campus-api.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable --now campus-api
 curl -fsS http://127.0.0.1:3000/healthz
+curl -fsS http://127.0.0.1:3000/readyz
 ```
+
+`/healthz` 只表示进程存活；`/readyz` 会检查 MySQL 和 Redis，任一不可用时返回 503。Nginx/监控应以 `/readyz` 为准。
 
 ## 3. 管理后台与 Nginx
 
@@ -47,7 +57,7 @@ sudo nginx -t && sudo systemctl reload nginx
 sudo mkdir -p /var/backups/campus
 sudo crontab -e
 # 30 3 * * * MYSQL_PASSWORD=... /opt/campus/deploy/scripts/backup-mysql.sh
-# */5 * * * * PUBLIC_BASE_URL=https://campus.example.com MYSQL_PASSWORD=... /opt/campus/deploy/scripts/healthcheck.sh
+# */5 * * * * PUBLIC_BASE_URL=https://campus.example.com /opt/campus/deploy/scripts/healthcheck.sh
 ```
 
 定期在测试库执行 `restore-mysql.sh` 验证备份可用。监控项至少包含：API 5xx、P95 延迟、MySQL 连接数、Redis 内存、磁盘、备份结果。

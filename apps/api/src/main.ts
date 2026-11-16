@@ -92,7 +92,7 @@ async function bootstrap() {
       }
     }
   });
-  app.setGlobalPrefix('api/v1', { exclude: ['healthz'] });
+  app.setGlobalPrefix('api/v1', { exclude: ['healthz', 'readyz'] });
   const allowedOrigins = (process.env.CORS_ORIGINS || 'http://127.0.0.1:5173,http://localhost:5173')
     .split(',')
     .map((item) => item.trim())

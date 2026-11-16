@@ -1,6 +1,6 @@
 # 生产上线清单 / Production Readiness
 
-> 版本：`v0.3.0-rc.1`
+> 版本：`v0.3.0-rc.2`
 >
 > 更新：2026-11-16
 > 目标：单校版正式部署上线。四份源文档仍是产品/业务/设计/排版的权威依据；本文件记录工程状态、外部依赖、测试证据和验收标准。
@@ -24,7 +24,7 @@
 | P0-07 图片内容安全 | 代码完成，生产网关待接 | 可配置同步审核网关；blocked 删除文件并 400，网关异常 503；未配置保持人工 P2；真实供应商 URL/Token 待配置 |
 | P0-08 生产微信登录与 HTTPS | 配置/脚本完成，线上待部署 | production 环境校验、真实 code2Session 分支、Nginx TLS 模板、systemd、环境样例、部署文档；待域名/证书/正式 AppID/服务器 |
 | P0-09 并发与瞬时压力 | 已完成离线压测 | 250/500/1000 请求、50/100 并发均 0 错误；见第 4 节；生产需在目标服务器复测 |
-| P0-10 备份、监控与 Runbook | 已完成本地恢复演练 | MySQL 备份/恢复/健康检查脚本、部署文档；本地 341,631 字节备份恢复后 users/posts/comments 计数一致（5/17/11）；目标服务器监控告警待接 |
+| P0-10 备份、监控与 Runbook | 已完成本地恢复演练 | MySQL 备份/恢复/healthcheck/preflight 脚本、部署文档；本地 341,631 字节备份恢复后 users/posts/comments 计数一致（5/17/11）；`/readyz` 检查 MySQL/Redis；目标服务器监控告警待接 |
 
 ## 3. 外部依赖/上线前必须准备
 
@@ -54,6 +54,8 @@
 | 备份恢复 | `mysqldump` → 临时库恢复 → 计数核对 | 341,631 字节；25 张表；users/posts/comments 5/17/11 一致 |
 | 生产模式 | 隔离 3099 + production 环境变量 | 启动成功、MySQL normalized、Redis connected、health 200 |
 | 生产校验拒绝 | 缺失生产变量时启动 | 按预期 exit 1 并列出缺失项 |
+| 生产预检 | `deploy/scripts/preflight-production.sh` 对本地开发 env | 正确拒绝并列出缺失项 |
+| 就绪检查 | `GET /readyz` MySQL/Redis 正常；Redis 断开 | 200；503 |
 
 说明：压测在独立 3001 实例、`RATE_LIMIT_MAX=10000` 下执行，避免测试流量触发生产限流；生产默认仍为 300/min。
 
@@ -61,9 +63,9 @@
 
 1. 准备域名/证书/正式微信参数；在服务器安装 Node 20、pnpm、MySQL 8、Redis、Nginx。
 2. 按 `deploy/env.production.example` 生成 `.env`，填写真实密钥；`NODE_ENV=production`、`ALLOW_DEMO_LOGIN=false`。
-3. 构建 API/管理端；执行数据库迁移；用 `deploy/systemd/campus-api.service` 启动 API。
+3. 构建 API/管理端；执行 `deploy/scripts/preflight-production.sh`；用 `deploy/systemd/campus-api.service` 启动 API。
 4. 配置 `deploy/nginx/production.conf`，启用 HTTPS/HSTS/CSP/上传大小限制；只暴露 443。
-5. 运行 `deploy/scripts/healthcheck.sh`；在微信后台配置合法域名；真机验收登录、邀请码、发布、评论、图片、审核、通知、注销、申诉。
+5. 运行 `deploy/scripts/healthcheck.sh`（同时检查 `/healthz` 与 `/readyz`）；在微信后台配置合法域名；真机验收登录、邀请码、发布、评论、图片、审核、通知、注销、申诉。
 6. 执行 `deploy/scripts/backup-mysql.sh`，再用 `restore-mysql.sh` 在隔离库完成一次恢复演练。
 7. 跑 `tools/load-test.mjs` 和 `tools/security-smoke.mjs`；监控 5xx/429/登录失败/队列积压/磁盘/DB 连接。
 8. 切换流量；保留上一版本与数据库备份；异常按 `docs/DEPLOYMENT.md` 回滚。

@@ -4,8 +4,8 @@
 
 ## 版本状态
 
-- 当前版本：`v0.3.0-rc.3`（2026-11-16）
-- 已跑通：小程序核心内容闭环、管理端 11 个栏目、MySQL 规范化持久化、Redis 限流、AI 文本审核/举报复核、邀请码、审计日志、RBAC/学校审核人、官方账号授权链、用户治理、真实注销、申诉、双人复核、图片安全适配器、生产配置校验与压测。
+- 当前版本：`v0.3.0-rc.4`（2026-11-18）
+- 已跑通：小程序核心内容闭环、管理端 11 个栏目、MySQL 规范化持久化、Redis 限流、AI 文本审核/举报复核、邀请码、审计日志、RBAC/学校审核人、官方账号授权链、用户治理、真实注销、申诉、单人终审（全风险等级）、图片安全适配器、生产配置校验与压测。
 - **当前是 Release Candidate，尚未完成正式线上部署。** 完整的上线阻断项、外部依赖、测试矩阵和完成定义见 [docs/PRODUCTION-READINESS.md](docs/PRODUCTION-READINESS.md)。
 - 距正式上线主要剩外部依赖与目标服务器验收：备案域名/HTTPS、正式微信 AppID、学校授权材料、图片审核供应商、真实备份恢复演练和真机验收。
 
@@ -112,7 +112,7 @@ docker compose -f deploy/docker-compose.yml up -d --build
 - 本地演示：`ALLOW_DEMO_LOGIN=true` 时允许固定用户登录；生产必须设为 `false`。
 - 生产微信登录：配置 `WX_APPID/WX_SECRET`，并设置 `ALLOW_DEMO_LOGIN=false`，API 会调用微信 `code2Session`。
 - 管理员账号：平台根账号由 `.env` 的 `ADMIN_EMAIL / ADMIN_PASSWORD / ADMIN_TOTP_SECRET` 初始化并同步到 `admin_users`（scrypt 哈希）；平台管理员可在“团队权限”创建内容审核员/学校审核人。根账号 env 兜底仅用于平台管理员，普通管理员登录以数据库账号为准。
-- 管理后台已接真实 API：审核队列 1 秒、概览/举报 2 秒、其余页面 3-4 秒静默轮询；单飞、页面隐藏暂停、失败退避，发布后无需手动刷新。举报页展示内容和 AI 初筛详情；高风险 P0/P1 需两名不同审核员一致，冲突由平台管理员第三票裁决。
+- 管理后台已接真实 API：审核队列 1 秒、概览/举报 2 秒、其余页面 3-4 秒静默轮询；单飞、页面隐藏暂停、失败退避，发布后无需手动刷新。举报页展示内容和 AI 初筛详情；审核队列由一名有权限的审核员直接终审，审核记录保留在案件时间线中。
 - 管理员 TOTP：`ADMIN_TOTP_SECRET` 必须是 Base32（A-Z2-7）；用 Authenticator 扫描 `otpauth://totp/Campus:admin@campus.local?secret=<secret>&issuer=Campus`。本地临时可用 `ADMIN_TOTP=123456` 并清空 secret。
 - 邀请码：客户端只接受管理后台发放的邀请码，旧的本地默认 `CAMPUS` 会在启动时自动吊销；MySQL `invite_codes` 已接入次数/过期/吊销校验，后台“邀请码”页可创建/吊销并实时显示已用次数，API 为 `GET/POST /api/v1/admin/invite-codes` 与 `POST /api/v1/admin/invite-codes/:id/revoke`。
 - 官方账号：后台可新建/编辑组织、上传授权文件、学校审核人初审、平台复核、到期自动失效；授权文件只允许管理员下载，不能匿名访问。

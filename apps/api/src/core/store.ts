@@ -1007,45 +1007,17 @@ export class CampusStore {
     if (!item) return undefined;
     if (item.status !== 'pending') throw new Error('CASE_CLOSED');
 
-    const needsDoubleReview = item.risk === 'P0' || item.risk === 'P1';
-    if (needsDoubleReview) {
-      item.reviews ||= [];
-      const reviewerId = reviewer?.id || 'platform';
-      if (item.reviews.some((review) => review.reviewerId === reviewerId)) {
-        throw new Error('REVIEW_DUPLICATE');
-      }
-      item.reviews.push({
-        reviewerId,
-        reviewerName: reviewer?.name || '平台管理员',
-        decision,
-        reason,
-        createdAt: nowIso()
-      });
-      const approvals = item.reviews.filter((review) => review.decision === 'approved').length;
-      const rejections = item.reviews.filter((review) => review.decision === 'rejected').length;
-      const conflict = approvals > 0 && rejections > 0;
-      const enoughSameVotes = item.reviews.filter((review) => review.decision === decision).length >= 2;
-      const tieBreak = conflict && reviewer?.role === 'platform_admin';
-      if (!enoughSameVotes && !tieBreak) {
-        item.reviewConflict = conflict;
-        item.reason = conflict
-          ? '两名审核员意见不一致，等待平台管理员裁决。'
-          : '第一位审核员已完成审核，等待第二位审核员复核。';
-        this.changed();
-        return item;
-      }
-      if (enoughSameVotes && !conflict) {
-        item.decidedBy = item.reviews
-          .filter((review) => review.decision === decision)
-          .map((review) => review.reviewerName)
-          .join(' / ');
-      } else {
-        item.decidedBy = `${reviewer?.name || '平台管理员'}（争议裁决）`;
-      }
-      item.reviewConflict = false;
-    } else {
-      item.decidedBy = reviewer?.name || '平台管理员';
-    }
+    // 所有风险等级均由一名审核员直接终审；保留 reviews 作为操作留痕。
+    item.reviews ||= [];
+    item.reviews.push({
+      reviewerId: reviewer?.id || 'platform',
+      reviewerName: reviewer?.name || '平台管理员',
+      decision,
+      reason,
+      createdAt: nowIso()
+    });
+    item.reviewConflict = false;
+    item.decidedBy = reviewer?.name || '平台管理员';
 
     item.status = decision;
     item.reason = reason || item.reason;

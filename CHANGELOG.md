@@ -1,5 +1,19 @@
 # 更新记录 / Changelog
 
+## v0.3.0-rc.4 — 2026-11-18
+
+### 变更
+
+- 审核流程调整为一名有权限的审核员直接终审，适用于 P0～P3 全部风险等级；不再要求第二名审核员或平台第三票。
+- 管理端移除“升级复核”“等待第二位审核员”“意见冲突裁决”等入口，保留单人审核记录。
+- 管理端审核成功提示改为立即生效；已处理案件仍不可重复审核。
+- E2E 管理端用例改为单人终审，并验证 MySQL `moderation_cases.reviews_json` 只有一条审核记录。
+
+### 验证
+
+- 平台管理员对 P0 评论单人拒绝：API 返回 rejected，DB 状态 rejected，reviews_json 1 条，decided_by 有值。
+- `e2e-admin` create → 重启 verify → 重启 check-clean 通过；`e2e-mysql` 三阶段通过；安全 smoke 17 项通过；API/admin 构建通过。
+
 ## v0.3.0-rc.3 — 2026-11-16
 
 ### 修复

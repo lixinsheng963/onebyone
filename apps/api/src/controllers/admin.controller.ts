@@ -129,7 +129,6 @@ export class AdminController {
     } catch (error) {
       const message = (error as Error).message;
       if (message === 'CASE_CLOSED') throw new BadRequestException('该审核记录已处理');
-      if (message === 'REVIEW_DUPLICATE') throw new BadRequestException('你不能重复复核同一条记录');
       throw error;
     }
     if (!result) throw new BadRequestException('审核记录不存在');

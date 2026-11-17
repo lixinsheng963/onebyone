@@ -139,21 +139,9 @@ async function createPhase() {
     method: 'POST', adminToken,
     body: { decision: 'rejected', reason: 'E2E 管理测试：评论内容违规' }
   });
-  const reviewerEmail = `e2e-review-${Date.now()}@campus.local`;
-  const reviewerPassword = 'E2EReviewerPass2026!';
-  const reviewer = (await api('/admin/operators', {
-    method: 'POST', adminToken,
-    body: { email: reviewerEmail, password: reviewerPassword, displayName: 'E2E复核员', role: 'content_reviewer' }
-  })).data;
-  const reviewerToken = await loginReviewer(reviewerEmail, reviewerPassword);
-  await api(`/admin/moderation/${moderationCase.id}/decision`, {
-    method: 'POST', adminToken: reviewerToken,
-    body: { decision: 'rejected', reason: 'E2E 管理测试：第二审核员确认违规' }
-  });
-  await api(`/admin/operators/${reviewer.id}/revoke`, { method: 'POST', adminToken });
   const finalizedQueue = (await api('/admin/moderation/queue', { adminToken })).data;
   const finalizedCase = finalizedQueue.find((item) => item.id === moderationCase.id);
-  assert(finalizedCase?.status === 'rejected', `double review status ${finalizedCase?.status}`);
+  assert(finalizedCase?.status === 'rejected', `single review status ${finalizedCase?.status}`);
 
   const report = (await api('/reports', {
     method: 'POST', token: userToken,

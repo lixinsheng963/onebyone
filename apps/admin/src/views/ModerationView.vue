@@ -63,12 +63,8 @@ async function decide(decision: 'approved' | 'rejected') {
     return;
   }
   try {
-    const result = await decideCase(selected.value.id, decision, note.value.trim());
-    if (result?.status === 'pending') {
-      ElMessage.info(result.reviewConflict ? '两位审核员意见不一致，已转平台管理员裁决' : '已记录第一位审核意见，等待第二位审核员复核');
-    } else {
-      ElMessage.success(decision === 'approved' ? '已通过，内容进入信息流' : '已拒绝，已通知作者');
-    }
+    await decideCase(selected.value.id, decision, note.value.trim());
+    ElMessage.success(decision === 'approved' ? '已通过，内容进入信息流' : '已拒绝，已通知作者');
     emit('changed');
     await load(false);
   } catch (e) {
@@ -169,7 +165,7 @@ async function decide(decision: 'approved' | 'rejected') {
         </div>
 
         <div v-if="selected.reviews?.length" class="review-votes">
-          <h4>复核记录</h4>
+          <h4>审核记录</h4>
           <div v-for="review in selected.reviews" :key="`${review.reviewerId}-${review.createdAt}`" class="review-vote">
             <span class="badge" :class="review.decision === 'approved' ? 'badge-green' : 'badge-p0'">
               {{ review.decision === 'approved' ? '通过' : '拒绝' }}
@@ -177,7 +173,6 @@ async function decide(decision: 'approved' | 'rejected') {
             <b>{{ review.reviewerName }}</b>
             <span class="muted">{{ review.reason || '无说明' }}</span>
           </div>
-          <p v-if="selected.reviewConflict" class="conflict-note">两位审核员意见不一致，需平台管理员裁决。</p>
         </div>
 
         <template v-if="selected.status === 'pending'">
@@ -188,7 +183,6 @@ async function decide(decision: 'approved' | 'rejected') {
 
           <div class="decision-bar">
             <button class="btn btn-outline" @click="decide('rejected')">拒绝并说明</button>
-            <button class="btn btn-outline" @click="ElMessage.info('已转交第二位审核员复核')">升级复核</button>
             <button class="btn btn-primary" @click="decide('approved')">通过并发布</button>
           </div>
         </template>

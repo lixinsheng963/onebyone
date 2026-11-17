@@ -25,7 +25,7 @@
 - 上传文件使用随机文件名和固定目录，禁止路径穿越；静态文件加 `nosniff` 和缓存头。
 - 生产 Nginx 配置增加 CSP、X-Frame-Options、Referrer-Policy、Permissions-Policy、HSTS、API 限流和请求体限制。
 - 生产环境 `ALLOW_DEMO_LOGIN=false`；邀请码由管理后台创建，客户端只接受 `invite_codes` 表中有效的管理员发放码，按次数/过期时间/状态原子校验；旧默认 `CAMPUS` 启动时自动吊销，`INVITE_CODE` 仅保留给运维显式种子（默认为空）。
-- P0/P1 审核需两名不同审核员一致；重复复核/自审被拒绝，冲突保留 pending，平台管理员可第三票裁决并留审计。
+- 所有风险等级审核均由一名具备对应权限的审核员直接终审；每次结论写入审核记录和审计日志，已处理案件不能重复审核，申诉由未参与原处理的审核员复核。
 - 图片上传调用可配置安全适配器：明确违规删除并返回 400，审核不可用返回 503；未配置时保持人工 P2，不会自动发布。
 - 生产启动强制校验真实微信参数、HTTPS `PUBLIC_BASE_URL`、强管理员密码、TOTP Base32、CORS 白名单、MySQL/Redis 和 `TRUST_PROXY`；缺项拒绝启动。
 

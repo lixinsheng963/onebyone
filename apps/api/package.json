@@ -1,6 +1,6 @@
 {
   "name": "@campus/api",
-  "version": "0.3.0-rc.4",
+  "version": "0.3.0-rc.5",
   "private": true,
   "scripts": {
     "dev": "tsc-watch -p tsconfig.json --onSuccess \"node dist/main.js\"",

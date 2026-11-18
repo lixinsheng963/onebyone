@@ -1,5 +1,22 @@
 # 更新记录 / Changelog
 
+## v0.3.0-rc.5 — 2026-11-18
+
+### 新增/完善
+
+- 官方账号运营者绑定：平台管理员可把官方账号绑定到真实用户；未绑定真实运营者不能复核生效；暂停/过期/换绑会恢复旧运营者原角色，避免占用普通用户身份。
+- 官方账号运营者昵称/ID 在后台展示；新增 `official_base_role/official_base_level` 迁移，确保换绑后恢复原身份。
+- 新增 `docs/ADMIN-RUNBOOK.md`：官方账号完整流程、学校授权/学校审核人、团队权限、邮箱告警逐步操作与自测表。
+- 新增邮件告警脚本 `send-alert-email.sh`、`healthcheck-alert.sh` 及 systemd timer；默认收件人 `2576264825@qq.com`，SMTP 授权码由生产 env 提供。
+- 官方账号权限边界表更新为“单人终审 + 审计”；审核页保持单人终审。
+
+### 验证
+
+- 绑定 `oa_club` 运营者 `u_lin` → 201，角色 official；换回 `u_cat` → 201；旧运营者恢复 creator；审计写入 `official.operator.bind`。
+- API/admin 构建通过；API 3000 `/healthz`/`/readyz` 正常；未绑定运营者复核 active 返回 400“请先绑定官方账号运营者，再复核生效”；后台绑定弹窗 Playwright 通过。
+- 最终回归：`e2e-mysql` 三阶段、`e2e-admin` 三阶段、`e2e-invite` 两阶段、`security-smoke` 17 项、WXML 16 文件、全部小程序 JS 语法通过。
+- 邮件脚本 `bash -n`、发送 dry-run、健康/故障状态变化 dry-run 通过；SMTP 授权码未提供，真实邮件发送未执行。
+
 ## v0.3.0-rc.4 — 2026-11-18
 
 ### 变更

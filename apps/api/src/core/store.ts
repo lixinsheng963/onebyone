@@ -1080,12 +1080,78 @@ export class CampusStore {
 
   getOfficialAccounts(): OfficialAccount[] {
     this.refreshOfficialExpiry();
+    this.decorateOfficialOperators();
     return this.officialAccounts;
   }
 
   getOfficialAccount(accountId: string): OfficialAccount | undefined {
     this.refreshOfficialExpiry();
-    return this.officialAccounts.find((a) => a.id === accountId);
+    const item = this.officialAccounts.find((a) => a.id === accountId);
+    if (item) this.decorateOfficialOperator(item);
+    return item;
+  }
+
+  private activateOfficial(user: User, orgName: string): void {
+    if (user.role !== 'official') {
+      user.officialBaseRole = user.role === 'creator' ? 'creator' : 'student';
+      user.officialBaseLevel = user.level === 'L4' ? 'L1' : user.level;
+    }
+    user.isOfficial = true;
+    user.role = 'official';
+    user.level = 'L4';
+    user.officialOrg = orgName;
+  }
+
+  private deactivateOfficial(user: User): void {
+    if (!user.isOfficial && user.role !== 'official') return;
+    user.isOfficial = false;
+    user.role = user.officialBaseRole || 'student';
+    user.level = user.officialBaseLevel || 'L1';
+    user.officialOrg = undefined;
+  }
+
+  private decorateOfficialOperator(item: OfficialAccount): void {
+    const operator = this.users.find((u) => u.id === item.userId);
+    const bound = Boolean(operator && !/^u_official(_|$)/.test(operator.id));
+    item.operatorUserId = bound ? operator!.publicId : undefined;
+    item.operatorNickname = bound ? operator!.nickname : undefined;
+  }
+
+  private decorateOfficialOperators(): void {
+    for (const item of this.officialAccounts) this.decorateOfficialOperator(item);
+  }
+
+  isOfficialOperatorBound(accountId: string): boolean {
+    const item = this.officialAccounts.find((a) => a.id === accountId);
+    if (!item) return false;
+    const operator = this.users.find((u) => u.id === item.userId);
+    return Boolean(operator && !/^u_official(_|$)/.test(operator.id) && operator.status !== 'deleted' && operator.status !== 'banned');
+  }
+
+  bindOfficialOperator(accountId: string, userPublicId: string): OfficialAccount {
+    const item = this.officialAccounts.find((a) => a.id === accountId);
+    if (!item) throw new Error('OFFICIAL_ACCOUNT_NOT_FOUND');
+    const target = this.users.find((u) => u.publicId === userPublicId || u.id === userPublicId);
+    if (!target) throw new Error('OFFICIAL_OPERATOR_NOT_FOUND');
+    if (/^u_official(_|$)/.test(target.id)) throw new Error('OFFICIAL_OPERATOR_PLACEHOLDER');
+    if (target.status === 'deleted' || target.status === 'banned') throw new Error('OFFICIAL_OPERATOR_DISABLED');
+    if (target.status === 'muted' && target.mutedUntil && new Date(target.mutedUntil).getTime() > Date.now()) {
+      throw new Error('OFFICIAL_OPERATOR_MUTED');
+    }
+    if (this.officialAccounts.some((a) => a.id !== accountId && a.userId === target.id)) {
+      throw new Error('OFFICIAL_OPERATOR_ALREADY_BOUND');
+    }
+    const previousId = item.userId;
+    item.userId = target.id;
+    item.operatorNickname = target.nickname;
+    if (item.status === 'active') {
+      this.activateOfficial(target, item.orgName);
+      const previous = this.users.find((u) => u.id === previousId);
+      const stillBound = this.officialAccounts.some((a) => a.userId === previousId);
+      if (previous && previous.id !== target.id && !stillBound) this.deactivateOfficial(previous);
+    }
+    this.changed();
+    return item;
   }
 
   createOfficialAccount(input: {
@@ -1172,11 +1238,8 @@ export class CampusStore {
     }
     const owner = this.users.find((u) => u.id === item.userId);
     if (owner) {
-      const active = item.status === 'active';
-      owner.isOfficial = active;
-      owner.role = active ? 'official' : 'student';
-      owner.level = active ? 'L4' : 'L1';
-      owner.officialOrg = active ? item.orgName : undefined;
+      if (item.status === 'active') this.activateOfficial(owner, item.orgName);
+      else if (item.status === 'suspended' || item.status === 'expired') this.deactivateOfficial(owner);
     }
     this.changed();
     return item;
@@ -1188,12 +1251,7 @@ export class CampusStore {
       if (item.status === 'active' && item.expiresAt && new Date(item.expiresAt).getTime() <= Date.now()) {
         item.status = 'expired';
         const owner = this.users.find((u) => u.id === item.userId);
-        if (owner) {
-          owner.isOfficial = false;
-          owner.role = 'student';
-          owner.level = 'L1';
-          owner.officialOrg = undefined;
-        }
+        if (owner) this.deactivateOfficial(owner);
         dirty = true;
       }
     }

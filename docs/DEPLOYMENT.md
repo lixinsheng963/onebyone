@@ -75,3 +75,7 @@ sudo crontab -e
 - 图片审核网关已配置（`IMAGE_SAFETY_URL`），未配置时仅允许人工审核。
 - 备份、恢复、健康检查、日志轮转已配置。
 - 压力测试与全量 e2e 通过。
+
+## 监控告警
+
+`deploy/scripts/healthcheck-alert.sh` 同时检查 `/healthz` 与 `/readyz`，状态变化时调用 `send-alert-email.sh` 发送邮件。生产 env 配置 `ALERT_SMTP_URL`、`ALERT_SMTP_USER`、`ALERT_SMTP_PASS`（QQ 邮箱授权码）、`ALERT_EMAIL_FROM`、`ALERT_EMAIL_TO=2576264825@qq.com`；先用 `ALERT_DRY_RUN=1` 验证，再安装 `campus-healthcheck.timer`。

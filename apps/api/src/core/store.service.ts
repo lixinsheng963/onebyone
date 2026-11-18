@@ -709,7 +709,8 @@ export class StoreService extends CampusStore implements OnModuleDestroy {
   private async loadNormalizedSnapshot(): Promise<StoreSnapshot | null> {
     if (!this.pool) return null;
     const [userRows] = await this.pool.query<any[]>(
-      `SELECT id, public_id, openid, nickname, avatar_url, role, level, is_official, official_org, status, muted_until, status_reason, deleted_at, created_at
+      `SELECT id, public_id, openid, nickname, avatar_url, role, level, is_official, official_org,
+              official_base_role, official_base_level, status, muted_until, status_reason, deleted_at, created_at
        FROM users ORDER BY id`
     );
     if (!userRows.length) return null;
@@ -728,6 +729,8 @@ export class StoreService extends CampusStore implements OnModuleDestroy {
         level: ['L0', 'L1', 'L2', 'L3', 'L4'].includes(row.level) ? row.level : 'L1',
         isOfficial: Boolean(row.is_official),
         officialOrg: row.official_org || undefined,
+        officialBaseRole: row.official_base_role === 'creator' ? 'creator' : row.official_base_role === 'student' ? 'student' : undefined,
+        officialBaseLevel: ['L0', 'L1', 'L2', 'L3'].includes(row.official_base_level) ? row.official_base_level : undefined,
         status: ['active', 'muted', 'banned', 'deleted'].includes(row.status) ? row.status : 'active',
         mutedUntil: row.muted_until ? asIso(row.muted_until, '') : undefined,
         statusReason: row.status_reason || undefined,
@@ -1168,11 +1171,13 @@ export class StoreService extends CampusStore implements OnModuleDestroy {
     const changed = this.changedById(previous, current);
     for (const user of changed) {
       const [result] = await connection.query<ResultSetHeader>(
-        `INSERT INTO users (public_id, openid, nickname, avatar_url, role, level, is_official, official_org, status, muted_until, status_reason, deleted_at, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `INSERT INTO users (public_id, openid, nickname, avatar_url, role, level, is_official, official_org,
+           official_base_role, official_base_level, status, muted_until, status_reason, deleted_at, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id), openid = VALUES(openid),
            nickname = VALUES(nickname), avatar_url = VALUES(avatar_url), role = VALUES(role),
            level = VALUES(level), is_official = VALUES(is_official), official_org = VALUES(official_org),
+           official_base_role = VALUES(official_base_role), official_base_level = VALUES(official_base_level),
            status = VALUES(status), muted_until = VALUES(muted_until), status_reason = VALUES(status_reason),
            deleted_at = VALUES(deleted_at)`,
         [
@@ -1184,6 +1189,8 @@ export class StoreService extends CampusStore implements OnModuleDestroy {
           user.level || 'L1',
           user.isOfficial || user.role === 'official' ? 1 : 0,
           user.officialOrg || null,
+          user.officialBaseRole || null,
+          user.officialBaseLevel || null,
           user.status || 'active',
           asSqlDate(user.mutedUntil) || null,
           user.statusReason || null,

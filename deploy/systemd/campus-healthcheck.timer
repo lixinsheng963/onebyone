@@ -1,0 +1,10 @@
+[Unit]
+Description=Run Campus community health check every 2 minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=2min
+Unit=campus-healthcheck.service
+
+[Install]
+WantedBy=timers.target

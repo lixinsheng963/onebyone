@@ -168,6 +168,8 @@ function mapOfficial(item: any): OfficialAccount {
     orgName: item.orgName,
     orgId: item.orgId,
     owner: item.userId || '未绑定',
+    operatorUserId: item.operatorUserId,
+    operatorNickname: item.operatorNickname,
     scope: Array.isArray(item.scope) ? item.scope : [],
     status: item.status,
     authorization: item.authorizationFile ? (item.authorizationFileName || '授权文件已上传') : '授权文件待上传',
@@ -183,6 +185,13 @@ function mapOfficial(item: any): OfficialAccount {
 export async function getOfficialAccounts(): Promise<OfficialAccount[]> {
   const data = await request<any[]>('/admin/official-accounts');
   return data.map(mapOfficial);
+}
+
+export async function bindOfficialOperator(accountId: string, userId: string) {
+  return request(`/admin/official-accounts/${accountId}/operator`, {
+    method: 'POST',
+    body: JSON.stringify({ userId })
+  });
 }
 
 export async function reviewOfficial(accountId: string, status: string) {

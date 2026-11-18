@@ -1,0 +1,10 @@
+[Unit]
+Description=Campus community health check and email alert
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=campus
+Group=campus
+EnvironmentFile=/opt/campus/apps/api/.env
+ExecStart=/opt/campus/deploy/scripts/healthcheck-alert.sh

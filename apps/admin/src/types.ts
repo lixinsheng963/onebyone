@@ -97,6 +97,8 @@ export interface OfficialAccount {
   orgName: string;
   orgId?: string;
   owner: string;
+  operatorUserId?: string;
+  operatorNickname?: string;
   scope: string[];
   status: 'active' | 'pending_school' | 'pending_platform' | 'suspended' | 'expired';
   authorization: string;

@@ -231,6 +231,29 @@ export class AdminController {
     }
   }
 
+  @Post('official-accounts/:accountId/operator')
+  async bindOfficialOperator(@Req() req: FastifyRequest, @Param('accountId') accountId: string, @Body() body: any) {
+    const identity = this.requireAdmin(req, ['platform_admin']);
+    assertId(accountId, '官方账号');
+    const target = this.store.getOfficialAccount(accountId);
+    if (!target) throw new BadRequestException('官方账号不存在');
+    const userPublicId = requireText(body?.userId, 96, '运营者用户 ID');
+    const before = this.snapshot(target);
+    try {
+      const result = this.store.bindOfficialOperator(accountId, userPublicId);
+      await this.audit(req, 'official.operator.bind', 'official_account', accountId, before, result, identity);
+      return ok(result);
+    } catch (error) {
+      const message = (error as Error).message;
+      if (message === 'OFFICIAL_OPERATOR_NOT_FOUND') throw new BadRequestException('找不到该用户，请确认用户 ID');
+      if (message === 'OFFICIAL_OPERATOR_PLACEHOLDER') throw new BadRequestException('不能绑定系统占位账号，请选择真实微信用户');
+      if (message === 'OFFICIAL_OPERATOR_DISABLED') throw new BadRequestException('该用户已被封禁或注销，不能绑定');
+      if (message === 'OFFICIAL_OPERATOR_MUTED') throw new BadRequestException('该用户处于禁言状态，不能绑定');
+      if (message === 'OFFICIAL_OPERATOR_ALREADY_BOUND') throw new BadRequestException('该用户已绑定其他官方账号');
+      throw error;
+    }
+  }
+
   @Post('official-accounts/:accountId/review')
   async reviewOfficial(@Req() req: FastifyRequest, @Param('accountId') accountId: string, @Body() body: any) {
     const identity = this.requireAdmin(req, ['platform_admin', 'school_reviewer']);
@@ -251,6 +274,9 @@ export class AdminController {
       }
       if (status === 'active' && target.status !== 'pending_platform' && target.status !== 'suspended') {
         throw new BadRequestException('官方账号须先通过学校初审，才能由平台复核生效');
+      }
+      if (status === 'active' && !this.store.isOfficialOperatorBound(accountId)) {
+        throw new BadRequestException('请先绑定官方账号运营者，再复核生效');
       }
       if (status === 'active' && target.expiresAt && new Date(target.expiresAt).getTime() <= Date.now()) {
         throw new BadRequestException('授权已过期，请先更新有效期');

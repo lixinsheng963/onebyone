@@ -4,8 +4,8 @@
 
 ## 版本状态
 
-- 当前版本：`v0.3.0-rc.4`（2026-11-18）
-- 已跑通：小程序核心内容闭环、管理端 11 个栏目、MySQL 规范化持久化、Redis 限流、AI 文本审核/举报复核、邀请码、审计日志、RBAC/学校审核人、官方账号授权链、用户治理、真实注销、申诉、单人终审（全风险等级）、图片安全适配器、生产配置校验与压测。
+- 当前版本：`v0.3.0-rc.5`（2026-11-18）
+- 已跑通：小程序核心内容闭环、管理端 11 个栏目、MySQL 规范化持久化、Redis 限流、AI 文本审核/举报复核、邀请码、审计日志、RBAC/学校审核人、官方账号授权链与运营者绑定、用户治理、真实注销、申诉、单人终审（全风险等级）、图片安全适配器、生产配置校验与压测。
 - **当前是 Release Candidate，尚未完成正式线上部署。** 完整的上线阻断项、外部依赖、测试矩阵和完成定义见 [docs/PRODUCTION-READINESS.md](docs/PRODUCTION-READINESS.md)。
 - 距正式上线主要剩外部依赖与目标服务器验收：备案域名/HTTPS、正式微信 AppID、学校授权材料、图片审核供应商、真实备份恢复演练和真机验收。
 
@@ -115,7 +115,9 @@ docker compose -f deploy/docker-compose.yml up -d --build
 - 管理后台已接真实 API：审核队列 1 秒、概览/举报 2 秒、其余页面 3-4 秒静默轮询；单飞、页面隐藏暂停、失败退避，发布后无需手动刷新。举报页展示内容和 AI 初筛详情；审核队列由一名有权限的审核员直接终审，审核记录保留在案件时间线中。
 - 管理员 TOTP：`ADMIN_TOTP_SECRET` 必须是 Base32（A-Z2-7）；用 Authenticator 扫描 `otpauth://totp/Campus:admin@campus.local?secret=<secret>&issuer=Campus`。本地临时可用 `ADMIN_TOTP=123456` 并清空 secret。
 - 邀请码：客户端只接受管理后台发放的邀请码，旧的本地默认 `CAMPUS` 会在启动时自动吊销；MySQL `invite_codes` 已接入次数/过期/吊销校验，后台“邀请码”页可创建/吊销并实时显示已用次数，API 为 `GET/POST /api/v1/admin/invite-codes` 与 `POST /api/v1/admin/invite-codes/:id/revoke`。
-- 官方账号：后台可新建/编辑组织、上传授权文件、学校审核人初审、平台复核、到期自动失效；授权文件只允许管理员下载，不能匿名访问。
+- 官方账号：后台可新建/编辑组织、绑定真实运营者、上传授权文件、学校审核人初审、平台复核、暂停/换绑/到期自动失效；授权文件只允许管理员下载，不能匿名访问。未绑定运营者不能复核生效，避免占位账号发布。
+- 运营手册：[docs/ADMIN-RUNBOOK.md](docs/ADMIN-RUNBOOK.md) 含官方账号、学校授权/审核人、团队权限的逐步操作与自测表；部署与监控见 [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)。
+- 监控告警：`deploy/scripts/healthcheck-alert.sh` 检查 `/healthz` + `/readyz`，状态变化时通过 `send-alert-email.sh` 发送邮件；默认收件人 `2576264825@qq.com`，需要在生产 env 配置 SMTP 地址/账号/授权码/发件人。
 - 账号治理：后台“用户治理”支持禁言/封禁/恢复；小程序设置页可真实注销；举报/申诉/审核均留审计记录。
 - 生产环境必须接入真实微信 `code2Session`、HTTPS、TOTP、MySQL、Redis、COS 与 DeepSeek。
 
@@ -129,7 +131,7 @@ docker compose -f deploy/docker-compose.yml up -d --build
 ## 说明
 
 - **数据模式**：`DATA_MODE=mysql`（推荐，24 张规范化业务表，自动建表并把旧 `app_state` 快照迁移到 user/post/comment/media 等表）、`file`（本地快照，重启不丢）、`memory`（纯内存，重启回种子）。MySQL 连接失败时回退本地文件；生产不要依赖回退。
-- 旧 `app_state` 快照仍保留作迁移源/回滚参考，运行时不再以它为主。管理员账号、审计日志、通知槽位、邀请码已写入 `admin_users`/`audit_logs`/`notice_slot`/`invite_codes`；`school_reviewers` 为多校版预留。
+- 旧 `app_state` 快照仍保留作迁移源/回滚参考，运行时不再以它为主。管理员账号、学校审核人、审计日志、通知槽位、邀请码、申诉、用户状态已写入 `admin_users`/`school_reviewers`/`audit_logs`/`notice_slot`/`invite_codes`/`appeals` 等规范化表。
 - 自测脚本（先启动 API，workdir `apps/api`）：`node scripts/db-counts.mjs`；核心三阶段 `node scripts/e2e-mysql.mjs create` → 重启 API → `verify-delete` → 重启 → `check-clean`；后台三阶段 `node scripts/e2e-admin.mjs create/verify/check-clean`；邀请码两阶段 `node scripts/e2e-invite.mjs create` → 重启 → `node scripts/e2e-invite.mjs verify-clean`。
 - AI 审核默认走本地规则；在 `apps/api/.env` 或根目录 `.env` 设置 `DEEPSEEK_API_KEY` 后可接 DeepSeek，失败自动降级为规则审核。举报会结合“举报原因 + 内容”做 AI 复核：明显不符自动驳回，明确色情/血腥/暴力/诈骗等或证据充分自动通过并隐藏内容，图片和证据不足转人工；后台可查看完整目标与 AI 依据。`.env` 已被 gitignore，**不要提交密钥**；如果 Key 曾在聊天/截图里出现，建议到控制台轮换。
 - 微信文本内容安全：设置 `WX_APPID`、`WX_SECRET` 后 API 会调 `msgSecCheck`；测试号/未配置时自动跳过。

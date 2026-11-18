@@ -2,16 +2,18 @@
 import { onMounted, reactive, ref } from 'vue';
 import { ElMessage } from 'element-plus';
 import {
+  bindOfficialOperator,
   createOfficialAccount,
   downloadOfficialAuthorization,
   getAdminMe,
   getOfficialAccounts,
+  getUsers,
   reviewOfficial,
   updateOfficialAccount,
   uploadOfficialAuthorization
 } from '../api';
 import { useLivePoll } from '../composables/useLivePoll';
-import type { AdminRole, OfficialAccount } from '../types';
+import type { AdminRole, AdminUser, OfficialAccount } from '../types';
 
 const items = ref<OfficialAccount[]>([]);
 const role = ref<AdminRole>('platform_admin');
@@ -22,6 +24,11 @@ const saving = ref(false);
 const selectedFile = ref<File | null>(null);
 const fileInput = ref<HTMLInputElement>();
 const uploadTarget = ref<OfficialAccount | null>(null);
+const operatorDialog = ref(false);
+const operatorTarget = ref<OfficialAccount | null>(null);
+const operatorUserId = ref('');
+const operatorUsers = ref<AdminUser[]>([]);
+const operatorSaving = ref(false);
 const form = reactive({ orgName: '', orgId: '', scope: ['notice'] as string[], expiresAt: '' });
 
 onMounted(async () => {
@@ -169,6 +176,40 @@ async function downloadFile(item: OfficialAccount) {
   }
 }
 
+async function openOperator(item: OfficialAccount) {
+  operatorTarget.value = item;
+  operatorUserId.value = item.operatorUserId || '';
+  operatorDialog.value = true;
+  try {
+    operatorUsers.value = (await getUsers()).filter((user) => user.status === 'active');
+  } catch {
+    operatorUsers.value = [];
+  }
+}
+
+async function saveOperator() {
+  if (!operatorTarget.value) return;
+  if (!operatorUserId.value) return ElMessage.warning('请选择运营者');
+  operatorSaving.value = true;
+  try {
+    await bindOfficialOperator(operatorTarget.value.id, operatorUserId.value);
+    ElMessage.success('运营者已绑定；账号生效后将以该用户身份发布官方内容');
+    operatorDialog.value = false;
+    await load();
+  } catch (e) {
+    ElMessage.error((e as Error).message);
+  } finally {
+    operatorSaving.value = false;
+  }
+}
+
+function operatorText(item: OfficialAccount) {
+  if (item.operatorNickname && item.operatorUserId) {
+    return `运营者：${item.operatorNickname}`;
+  }
+  return '运营者：未绑定（当前为系统占位账号）';
+}
+
 async function submitSchoolReview(item: OfficialAccount) {
   try {
     await reviewOfficial(item.id, 'pending_platform');
@@ -217,7 +258,8 @@ function canPlatformApprove(item: OfficialAccount) {
               <div class="official-mark">校</div>
               <div class="official-name">
                 <b>{{ item.orgName }}</b>
-                <p>{{ item.owner }}</p>
+                <p>{{ operatorText(item) }}</p>
+                <p v-if="item.orgId" class="org-id">组织标识：{{ item.orgId }}</p>
               </div>
               <span class="badge" :class="statusClass(item.status)">{{ statusLabel(item.status) }}</span>
             </div>
@@ -232,6 +274,7 @@ function canPlatformApprove(item: OfficialAccount) {
               <button v-if="item.authorizationFileName" class="btn btn-outline btn-sm" @click="downloadFile(item)">查看授权文件</button>
               <button v-else class="btn btn-outline btn-sm" @click="triggerUpload(item)">上传授权文件</button>
               <button v-if="role === 'platform_admin'" class="btn btn-ghost btn-sm" @click="openEdit(item)">编辑</button>
+              <button v-if="role === 'platform_admin'" class="btn btn-outline btn-sm" @click="openOperator(item)">绑定运营者</button>
               <button v-if="canSchoolSubmit(item)" class="btn btn-primary btn-sm" @click="submitSchoolReview(item)">提交平台复核</button>
               <button v-else-if="canPlatformApprove(item)" class="btn btn-primary btn-sm" @click="approve(item)">通过并生效</button>
               <span v-else-if="item.status === 'pending_school'" class="muted">待学校初审</span>
@@ -269,6 +312,27 @@ function canPlatformApprove(item: OfficialAccount) {
       </template>
     </el-dialog>
 
+    <el-dialog v-model="operatorDialog" title="绑定官方账号运营者" width="480px">
+      <div class="form-stack">
+        <p class="muted">官方账号必须绑定一名真实微信用户。绑定后，该用户在小程序发布的内容才会带官方身份；换绑会降级旧运营者。</p>
+        <label>运营者
+          <el-select v-model="operatorUserId" filterable placeholder="搜索昵称或用户 ID" style="width:100%">
+            <el-option
+              v-for="user in operatorUsers"
+              :key="user.id"
+              :label="`${user.nickname}（${user.id}）`"
+              :value="user.id"
+            />
+          </el-select>
+        </label>
+        <p v-if="operatorTarget" class="muted">当前：{{ operatorText(operatorTarget) }}</p>
+      </div>
+      <template #footer>
+        <button class="btn btn-ghost" @click="operatorDialog = false">取消</button>
+        <button class="btn btn-primary" :disabled="operatorSaving" @click="saveOperator">{{ operatorSaving ? '绑定中…' : '确认绑定' }}</button>
+      </template>
+    </el-dialog>
+
     <section class="card">
       <div class="card-head">
         <div>
@@ -283,7 +347,7 @@ function canPlatformApprove(item: OfficialAccount) {
             <tr><td>校徽</td><td class="muted">不可用</td><td><span class="badge badge-blue">可用</span></td><td class="muted">不可用</td><td class="muted">配置</td></tr>
             <tr><td>校方通知</td><td class="muted">不可用</td><td><span class="badge badge-green">发布</span></td><td><span class="badge badge-p1">审核</span></td><td><span class="badge badge-green">复核/发布</span></td></tr>
             <tr><td>紧急通知</td><td class="muted">不可用</td><td class="muted">仅提交</td><td><span class="badge badge-p1">审核（默认不直发）</span></td><td><span class="badge badge-p0">发布/撤回</span></td></tr>
-            <tr><td>匿名身份</td><td class="muted">不可见</td><td class="muted">不可见</td><td class="muted">不可见</td><td class="muted">双人+审计</td></tr>
+            <tr><td>匿名身份</td><td class="muted">不可见</td><td class="muted">不可见</td><td class="muted">不可见</td><td class="muted">单人终审+审计</td></tr>
           </tbody>
         </table>
       </div>
@@ -300,6 +364,7 @@ function canPlatformApprove(item: OfficialAccount) {
 .official-name { flex: 1; }
 .official-name b { display: block; font-size: 13px; }
 .official-name p { margin: 2px 0 0; color: var(--muted); font-size: 10px; }
+.official-name .org-id { opacity: .75; }
 .scope-row { display: flex; gap: 5px; flex-wrap: wrap; margin: 13px 0 8px; }
 .auth-line { margin: 0 0 12px; color: var(--muted); font-size: 10px; line-height: 1.6; }
 .official-actions { display: flex; gap: 7px; flex-wrap: wrap; }

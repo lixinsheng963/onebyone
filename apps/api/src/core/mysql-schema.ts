@@ -32,6 +32,8 @@ export const MYSQL_SCHEMA_STATEMENTS: string[] = [
     level VARCHAR(8) NOT NULL DEFAULT 'L1',
     is_official TINYINT(1) NOT NULL DEFAULT 0,
     official_org VARCHAR(128) NULL,
+    official_base_role VARCHAR(24) NULL,
+    official_base_level VARCHAR(8) NULL,
     status VARCHAR(24) NOT NULL DEFAULT 'active',
     verification_status VARCHAR(24) NOT NULL DEFAULT 'unverified',
     created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
@@ -427,6 +429,8 @@ export async function ensureMysqlSchema(pool: Pool): Promise<void> {
       ['reports', 'ai_checked_at', '`ai_checked_at` DATETIME(3) NULL AFTER `ai_confidence`'],
       ['moderation_cases', 'reviews_json', '`reviews_json` JSON NULL AFTER `evidence`'],
       ['admin_users', 'display_name', '`display_name` VARCHAR(64) NOT NULL DEFAULT \'\' AFTER `email`'],
+      ['users', 'official_base_role', '`official_base_role` VARCHAR(24) NULL AFTER `official_org`'],
+      ['users', 'official_base_level', '`official_base_level` VARCHAR(8) NULL AFTER `official_base_role`'],
       ['users', 'muted_until', '`muted_until` DATETIME(3) NULL AFTER `status`'],
       ['users', 'status_reason', '`status_reason` VARCHAR(255) NULL AFTER `muted_until`'],
       ['users', 'deleted_at', '`deleted_at` DATETIME(3) NULL AFTER `status_reason`'],
@@ -464,12 +468,28 @@ export async function ensureMysqlSchema(pool: Pool): Promise<void> {
     );
     await connection.query(
       'INSERT IGNORE INTO schema_migrations (version) VALUES (?)',
+      ['2026-11-18-official-operator-base-v8']
+    );
+    await connection.query(
+      'INSERT IGNORE INTO schema_migrations (version) VALUES (?)',
       ['2026-11-16-appeals-v6']
     );
     await connection.query(
       'INSERT IGNORE INTO schema_migrations (version) VALUES (?)',
       ['2026-11-16-double-review-v7']
     );
+    // Repair seeded official accounts created before org_id was persisted.
+    await connection.query(
+      "UPDATE official_accounts SET org_id = 'org_library' WHERE org_id IS NULL AND org_name = '学校图书馆'"
+    );
+    await connection.query(
+      "UPDATE official_accounts SET org_id = 'org_club' WHERE org_id IS NULL AND org_name = '话剧社'"
+    );
+    await connection.query(
+      'INSERT IGNORE INTO schema_migrations (version) VALUES (?)',
+      ['2026-11-18-official-org-backfill-v9']
+    );
+
     await connection.query('INSERT IGNORE INTO notice_slot (id, active_notice_id) VALUES (1, NULL)');
   } finally {
     connection.release();

@@ -23,6 +23,8 @@ export interface User {
   level: 'L0' | 'L1' | 'L2' | 'L3' | 'L4';
   isOfficial: boolean;
   officialOrg?: string;
+  officialBaseRole?: 'student' | 'creator';
+  officialBaseLevel?: 'L0' | 'L1' | 'L2' | 'L3';
   status?: 'active' | 'muted' | 'banned' | 'deleted';
   mutedUntil?: string;
   statusReason?: string;
@@ -217,6 +219,8 @@ export interface Topic {
 export interface OfficialAccount {
   id: string;
   userId: string;
+  operatorUserId?: string;
+  operatorNickname?: string;
   orgName: string;
   orgId?: string;
   schoolId: string;

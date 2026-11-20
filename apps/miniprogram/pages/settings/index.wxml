@@ -12,6 +12,33 @@
     <text class="arrow">›</text>
   </view>
 
+  <view wx:if="{{user}}" class="profile-card card">
+    <image wx:if="{{user.avatar}}" class="profile-avatar" src="{{user.avatar}}" mode="aspectFill" />
+    <view wx:else class="profile-avatar profile-avatar-fallback">我</view>
+    <view class="profile-copy">
+      <text class="profile-name">{{user.nickname}}</text>
+      <text class="profile-sub">头像和昵称会显示在评论、发布和我的页面</text>
+    </view>
+    <button class="profile-edit" bindtap="editProfile">编辑资料</button>
+  </view>
+
+  <view wx:if="{{editingProfile}}" class="profile-editor card">
+    <view class="group-title">编辑个人资料</view>
+    <view class="profile-editor-row">
+      <image wx:if="{{avatarDraft}}" class="profile-avatar" src="{{avatarDraft}}" mode="aspectFill" />
+      <view wx:else class="profile-avatar profile-avatar-fallback">我</view>
+      <button class="btn-ghost" bindtap="chooseAvatar">从相册/拍照选择头像</button>
+    </view>
+    <view class="field">
+      <text>昵称（1-16 个字）</text>
+      <input class="input" maxlength="16" value="{{nicknameDraft}}" bindinput="onNicknameInput" placeholder="输入你喜欢的名字" />
+    </view>
+    <view class="profile-editor-actions">
+      <button class="btn-ghost" bindtap="cancelProfile">取消</button>
+      <button class="btn-primary" disabled="{{savingProfile}}" bindtap="saveProfile">{{savingProfile ? '保存中…' : '保存资料'}}</button>
+    </view>
+  </view>
+
   <view class="group card">
     <view class="group-title">通知</view>
     <view class="row">
@@ -26,10 +53,6 @@
 
   <view class="group card">
     <view class="group-title">显示</view>
-    <view class="row">
-      <view><text class="row-title">深色模式</text><text>P2；先把校报感做稳</text></view>
-      <switch checked="{{dark}}" color="#b64a3a" bindchange="toggleDark" />
-    </view>
     <view class="row press" bindtap="clearCache">
       <view><text class="row-title">清理缓存</text><text>草稿、图片临时文件、登录状态</text></view>
       <text class="arrow">›</text>
@@ -47,7 +70,7 @@
       <text class="arrow">›</text>
     </view>
     <view class="row">
-      <view><text class="row-title">版本</text><text>v0.1.0 · 单校版 MVP</text></view>
+      <view><text class="row-title">版本</text><text>v0.3.0-rc.5 · 单校版</text></view>
       <text class="version">CAMPUS</text>
     </view>
   </view>

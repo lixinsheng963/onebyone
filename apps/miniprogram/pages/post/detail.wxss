@@ -268,12 +268,18 @@
 }
 
 .share-btn {
-  width: 58rpx;
+  width: 78rpx;
   height: 68rpx;
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  line-height: 1;
 }
+.share-btn::after { border: 0; }
+.share-arrow { color: #7d857f; font-size: 40rpx; line-height: 1; font-weight: 300; }
 
 .comment-composer {
   position: fixed;

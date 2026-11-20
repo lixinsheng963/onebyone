@@ -21,6 +21,13 @@ fi
 : "${user:?ALERT_SMTP_USER is required}"
 : "${pass:?ALERT_SMTP_PASS is required (QQ Mail authorization code)}"
 
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if command -v python3 >/dev/null 2>&1; then
+  ALERT_SMTP_URL="$url" ALERT_SMTP_USER="$user" ALERT_SMTP_PASS="$pass" \
+  ALERT_EMAIL_FROM="$from" ALERT_EMAIL_TO="$to" \
+  exec python3 "$script_dir/send-alert-email.py" "$subject" "$body"
+fi
+
 subject="${subject//$'\r'/ }"
 subject="${subject//$'\n'/ }"
 work="$(mktemp)"

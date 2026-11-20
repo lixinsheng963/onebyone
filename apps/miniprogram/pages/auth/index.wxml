@@ -26,6 +26,7 @@
     </view>
 
     <button class="btn-primary auth-login" bindtap="onLogin" loading="{{logging}}">微信一键登录</button>
+    <view class="auth-note">登录后将使用微信昵称和头像，也可以进入“设置 → 编辑资料”修改。</view>
     <view class="auth-note">浏览不需要登录；登录后可点赞、收藏、评论。</view>
     <view class="auth-legal">登录即同意《用户协议》和《隐私政策》</view>
   </view>

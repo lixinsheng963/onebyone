@@ -24,6 +24,10 @@ const roleLabels: Record<AdminRole, string> = {
 };
 
 const schoolCount = computed(() => items.value.filter((item) => item.role === 'school_reviewer' && item.status === 'active').length);
+const contentCount = computed(() => items.value.filter((item) => item.role === 'content_reviewer' && item.status === 'active').length);
+const roleFull = computed(() =>
+  form.value.role === 'school_reviewer' ? schoolCount.value >= 1 : contentCount.value >= 1
+);
 
 async function load() {
   try {
@@ -44,6 +48,10 @@ async function submit() {
   }
   if (form.value.password.length < 10) {
     ElMessage.warning('初始密码至少 10 位');
+    return;
+  }
+  if (roleFull.value) {
+    ElMessage.warning(form.value.role === 'school_reviewer' ? '学校审核人只能设置 1 人' : '内容审核员只能设置 1 人');
     return;
   }
   if (form.value.role === 'school_reviewer' && (!form.value.schoolId.trim() || !form.value.orgId.trim())) {
@@ -102,7 +110,10 @@ function scopeText(item: AdminOperator) {
           <h2>团队与权限</h2>
           <p>平台管理员可创建学校审核人和内容审核员；学校审核人只处理本校官方账号。</p>
         </div>
-        <span class="badge badge-blue">{{ schoolCount }} 位学校审核人</span>
+        <div class="team-counts">
+          <span class="badge badge-blue">学校审核人 {{ schoolCount }}/1</span>
+          <span class="badge badge-blue">内容审核员 {{ contentCount }}/1</span>
+        </div>
       </div>
       <div class="card-body">
         <table class="table team-table">
@@ -148,8 +159,8 @@ function scopeText(item: AdminOperator) {
           <div class="field">
             <label>角色</label>
             <select v-model="form.role" class="input">
-              <option value="school_reviewer">学校审核人</option>
-              <option value="content_reviewer">内容审核员</option>
+              <option value="school_reviewer" :disabled="schoolCount >= 1">学校审核人（限 1 人）</option>
+              <option value="content_reviewer" :disabled="contentCount >= 1">内容审核员（限 1 人）</option>
             </select>
           </div>
           <div class="field">
@@ -168,7 +179,7 @@ function scopeText(item: AdminOperator) {
           </template>
         </div>
         <div class="team-submit">
-          <button class="btn btn-primary" :disabled="saving" @click="submit">{{ saving ? '创建中…' : '创建操作员' }}</button>
+          <button class="btn btn-primary" :disabled="saving || roleFull" @click="submit">{{ saving ? '创建中…' : (roleFull ? '该角色已满 1 人' : '创建操作员') }}</button>
         </div>
       </div>
     </section>

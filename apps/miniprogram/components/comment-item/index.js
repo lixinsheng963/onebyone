@@ -1,4 +1,5 @@
 Component({
+  data: { menuId: '' },
   properties: {
     comment: { type: Object, value: {} }
   },
@@ -12,8 +13,17 @@ Component({
         comment: target
       });
     },
-    onReport() {
-      this.triggerEvent('report', { comment: this.data.comment });
+    onMenu(e) {
+      const id = e.currentTarget.dataset.id;
+      this.setData({ menuId: this.data.menuId === id ? '' : id });
+    },
+    onReport(e) {
+      const id = e.currentTarget.dataset.id;
+      const kind = e.currentTarget.dataset.kind;
+      const replies = this.data.comment.replies || [];
+      const target = kind === 'reply' && id ? replies.find((item) => item.id === id) : this.data.comment;
+      this.setData({ menuId: '' });
+      this.triggerEvent('report', { comment: target || this.data.comment });
     }
   }
 });

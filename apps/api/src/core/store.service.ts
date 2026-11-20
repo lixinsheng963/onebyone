@@ -404,6 +404,10 @@ export class StoreService extends CampusStore implements OnModuleDestroy {
       throw new Error('SCHOOL_REVIEWER_SCOPE_REQUIRED');
     }
     if (this.adminUsersByEmail.has(email)) throw new Error('ADMIN_EMAIL_EXISTS');
+    const sameRoleActive = [...this.adminUsers.values()].filter(
+      (record) => record.role === input.role && record.status === 'active'
+    ).length;
+    if (sameRoleActive >= 1) throw new Error('ADMIN_OPERATOR_LIMIT');
     const displayName = (input.displayName || email.split('@')[0]).trim().slice(0, 64);
     const publicId = `adm_${randomBytes(12).toString('hex')}`;
     const connection = await this.pool.getConnection();

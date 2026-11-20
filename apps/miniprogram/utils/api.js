@@ -19,7 +19,26 @@ function request(path, method, data) {
         if (res.statusCode >= 200 && res.statusCode < 300 && res.data && res.data.code === 'OK') {
           resolve(res.data.data);
         } else {
-          reject(new Error((res.data && res.data.message) || '请求失败'));
+          const error = new Error((res.data && res.data.message) || '请求失败');
+          error.statusCode = res.statusCode;
+          error.body = res.data;
+          if (res.statusCode === 403 && /禁言/.test(error.message) && token()) {
+            wx.request({
+              url: `${config.baseUrl}/me`,
+              header: { 'x-user-token': token() },
+              success(meRes) {
+                const me = meRes.data && meRes.data.data;
+                if (me && me.mutedUntil) {
+                  const minutes = Math.max(1, Math.ceil((new Date(me.mutedUntil).getTime() - Date.now()) / 60000));
+                  error.message = `账号已被禁言：${me.statusReason || '违反社区公约'}，预计 ${minutes} 分钟后恢复`;
+                }
+                reject(error);
+              },
+              fail() { reject(error); }
+            });
+            return;
+          }
+          reject(error);
         }
       },
       fail: reject
@@ -75,6 +94,20 @@ function logout() {
 function deleteAccount() {
   if (!config.useRemote) return Promise.resolve({ deleted: true });
   return request('/me', 'DELETE');
+}
+
+function updateProfile(profile) {
+  if (!config.useRemote) {
+    const user = Object.assign({}, getUser() || {}, profile);
+    wx.setStorageSync('campus_user', user);
+    return Promise.resolve(user);
+  }
+  return request('/me', 'PUT', profile).then((user) => {
+    wx.setStorageSync('campus_user', user);
+    const app = getApp();
+    if (app) app.setUser(user);
+    return user;
+  });
 }
 
 function getUser() {
@@ -280,6 +313,7 @@ module.exports = {
   redeem,
   logout,
   deleteAccount,
+  updateProfile,
   getUser,
   getFeed,
   getPost,

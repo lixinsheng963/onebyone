@@ -27,6 +27,10 @@ export interface AdminUser {
   status: 'active' | 'muted' | 'banned' | 'deleted';
   mutedUntil?: string;
   statusReason?: string;
+  lastReportReason?: string;
+  lastReportDetail?: string;
+  lastReportAt?: string;
+  lastReportTargetType?: string;
   createdAt: string;
   postCount: number;
   commentCount: number;
@@ -103,6 +107,7 @@ export interface OfficialAccount {
   status: 'active' | 'pending_school' | 'pending_platform' | 'suspended' | 'expired';
   authorization: string;
   authorizationFileName?: string;
+  authorizationMime?: string;
   authorizationSize?: number;
   expiresAt?: string;
   effectiveAt?: string;

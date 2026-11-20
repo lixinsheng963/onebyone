@@ -90,8 +90,8 @@
         <image src="{{post.favorited ? '/assets/icons/star-active.png' : '/assets/icons/star.png'}}" class="action-icon" />
         <text class="{{post.favorited ? 'active star' : ''}}">{{fmt.count(post.favoriteCount)}}</text>
       </view>
-      <button class="share-btn" open-type="share">
-        <image src="/assets/icons/share.png" class="action-icon" />
+      <button class="share-btn" open-type="share" aria-label="分享">
+        <text class="share-arrow">↗</text>
       </button>
       <view class="action-icon-wrap" bindtap="onMore">
         <image src="/assets/icons/more.png" class="action-icon" />

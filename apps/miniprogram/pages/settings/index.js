@@ -4,20 +4,75 @@ Page({
   data: {
     user: null,
     notify: true,
-    dark: false
+    editingProfile: false,
+    nicknameDraft: '',
+    avatarDraft: '',
+    savingProfile: false
   },
 
   onShow() {
-    this.setData({ user: api.getUser() });
+    this.setData({
+      user: api.getUser(),
+      notify: wx.getStorageSync('campus_notify') !== false
+    });
+  },
+
+  editProfile() {
+    const user = this.data.user || {};
+    this.setData({
+      editingProfile: true,
+      nicknameDraft: user.nickname || '',
+      avatarDraft: user.avatar || ''
+    });
+  },
+
+  cancelProfile() {
+    this.setData({ editingProfile: false });
+  },
+
+  onNicknameInput(e) {
+    this.setData({ nicknameDraft: e.detail.value });
+  },
+
+  chooseAvatar() {
+    wx.chooseMedia({
+      count: 1,
+      mediaType: ['image'],
+      sourceType: ['album', 'camera'],
+      sizeType: ['compressed'],
+      success: async (res) => {
+        const file = res.tempFiles && res.tempFiles[0];
+        if (!file) return;
+        try {
+          const media = await api.uploadMedia(file.tempFilePath);
+          this.setData({ avatarDraft: media.url });
+        } catch (error) {
+          wx.showToast({ title: (error && error.message) || '头像上传失败', icon: 'none' });
+        }
+      }
+    });
+  },
+
+  async saveProfile() {
+    const nickname = (this.data.nicknameDraft || '').trim();
+    if (nickname.length < 1 || nickname.length > 16) {
+      return wx.showToast({ title: '昵称需要 1-16 个字', icon: 'none' });
+    }
+    if (this.data.savingProfile) return;
+    this.setData({ savingProfile: true });
+    try {
+      const user = await api.updateProfile({ nickname, avatar: this.data.avatarDraft });
+      this.setData({ user, editingProfile: false, savingProfile: false });
+      wx.showToast({ title: '资料已更新', icon: 'success' });
+    } catch (error) {
+      this.setData({ savingProfile: false });
+      wx.showToast({ title: (error && error.message) || '更新失败', icon: 'none' });
+    }
   },
 
   toggleNotify(e) {
     this.setData({ notify: e.detail.value });
-  },
-
-  toggleDark(e) {
-    this.setData({ dark: e.detail.value });
-    wx.showToast({ title: '深色模式将在后续版本开放', icon: 'none' });
+    wx.setStorageSync('campus_notify', e.detail.value);
   },
 
   clearCache() {

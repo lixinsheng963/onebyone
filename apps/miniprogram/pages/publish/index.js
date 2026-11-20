@@ -9,6 +9,8 @@ Page({
     text: '',
     textLength: 0,
     topics: TOPICS,
+    customTopics: [],
+    newTopic: '',
     topic: '',
     locations: LOCATIONS,
     locationIndex: -1,
@@ -20,6 +22,10 @@ Page({
   },
 
   onLoad() {
+    const savedTopics = wx.getStorageSync('campus_custom_topics');
+    this.setData({
+      customTopics: Array.isArray(savedTopics) ? savedTopics.slice(0, 12) : []
+    });
     const draft = wx.getStorageSync('campus_draft');
     if (draft) {
       this.setData({
@@ -80,6 +86,32 @@ Page({
   onTopic(e) {
     const topic = e.currentTarget.dataset.topic;
     this.setData({ topic: topic === this.data.topic ? '' : topic });
+  },
+
+  onTopicInput(e) {
+    this.setData({ newTopic: e.detail.value });
+  },
+
+  addTopic() {
+    const topic = (this.data.newTopic || '').trim();
+    if (!topic) return;
+    if (topic.length > 6) return wx.showToast({ title: '话题最多 6 个字', icon: 'none' });
+    if (TOPICS.includes(topic) || this.data.customTopics.includes(topic)) {
+      return wx.showToast({ title: '这个话题已经有了', icon: 'none' });
+    }
+    if (this.data.customTopics.length >= 12) {
+      return wx.showToast({ title: '最多保存 12 个自定义话题', icon: 'none' });
+    }
+    const customTopics = this.data.customTopics.concat(topic);
+    wx.setStorageSync('campus_custom_topics', customTopics);
+    this.setData({ customTopics, newTopic: '', topic });
+  },
+
+  removeTopic(e) {
+    const topic = e.currentTarget.dataset.topic;
+    const customTopics = this.data.customTopics.filter((item) => item !== topic);
+    wx.setStorageSync('campus_custom_topics', customTopics);
+    this.setData({ customTopics, topic: this.data.topic === topic ? '' : this.data.topic });
   },
 
   onLocation(e) {

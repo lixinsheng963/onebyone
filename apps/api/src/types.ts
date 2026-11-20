@@ -46,6 +46,10 @@ export interface AdminUserView {
   createdAt: string;
   postCount: number;
   commentCount: number;
+  lastReportReason?: string;
+  lastReportDetail?: string;
+  lastReportAt?: string;
+  lastReportTargetType?: 'post' | 'comment' | 'user';
 }
 
 export interface Appeal {

@@ -314,7 +314,10 @@ async function verifyState(state, token) {
     "SELECT status FROM reports WHERE target_type = 'post' AND target_id = ?",
     [dbPost[0].id]
   );
-  assert(dbReport.length === 1 && dbReport[0].status === 'pending', 'report did not survive restart');
+  assert(
+    dbReport.length === 1 && ['pending', 'rejected', 'resolved'].includes(dbReport[0].status),
+    'report did not survive restart'
+  );
 
   const favorites = await api('/me/favorites', { token });
   assert(

@@ -373,21 +373,44 @@ export class CampusStore {
   }
 
   listAdminUsers(): AdminUserView[] {
-    return this.users.map((user) => ({
-      id: user.id,
-      nickname: user.nickname,
-      avatar: user.avatar,
-      role: user.role,
-      level: user.level,
-      isOfficial: user.isOfficial,
-      officialOrg: user.officialOrg,
-      status: user.status || 'active',
-      mutedUntil: user.mutedUntil,
-      statusReason: user.statusReason,
-      createdAt: user.createdAt,
-      postCount: this.posts.filter((post) => post.authorId === user.id).length,
-      commentCount: this.comments.filter((comment) => comment.authorId === user.id).length
-    }));
+    const pendingOfficialUserIds = new Set(
+      this.officialAccounts
+        .filter((account) => account.status === 'pending_school' || account.status === 'pending_platform')
+        .map((account) => account.userId)
+    );
+    return this.users
+      .filter((user) => !/^u_official(_|$)/.test(user.id) && !pendingOfficialUserIds.has(user.id))
+      .map((user) => {
+        const relatedReports = this.reports
+          .filter((report) => report.status === 'resolved' && this.reportTargetUserId(report) === user.id)
+          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        const latest = relatedReports[0];
+        return {
+          id: user.id,
+          nickname: user.nickname,
+          avatar: user.avatar,
+          role: user.role,
+          level: user.level,
+          isOfficial: user.isOfficial,
+          officialOrg: user.officialOrg,
+          status: user.status || 'active',
+          mutedUntil: user.mutedUntil,
+          statusReason: user.statusReason,
+          createdAt: user.createdAt,
+          postCount: this.posts.filter((post) => post.authorId === user.id).length,
+          commentCount: this.comments.filter((comment) => comment.authorId === user.id).length,
+          lastReportReason: latest?.reason,
+          lastReportDetail: latest?.detail,
+          lastReportAt: latest?.createdAt,
+          lastReportTargetType: latest?.targetType
+        };
+      });
+  }
+
+  private reportTargetUserId(report: Report): string | undefined {
+    if (report.targetType === 'user') return report.targetId;
+    if (report.targetType === 'post') return this.posts.find((post) => post.id === report.targetId)?.authorId;
+    return this.comments.find((comment) => comment.id === report.targetId)?.authorId;
   }
 
   setUserStatus(userId: string, status: 'active' | 'muted' | 'banned' | 'deleted', options: { mutedUntil?: string; reason?: string } = {}): User {
@@ -417,6 +440,23 @@ export class CampusStore {
 
   getMe(token?: string): User | undefined {
     return this.getUserByToken(token);
+  }
+
+  updateMyProfile(token: string | undefined, patch: { nickname?: string; avatar?: string }): User {
+    const user = this.getUserByToken(token);
+    if (!user) throw new Error('AUTH_REQUIRED');
+    if (patch.nickname !== undefined) {
+      const nickname = patch.nickname.trim();
+      if (nickname.length < 1 || nickname.length > 16) throw new Error('NICKNAME_INVALID');
+      user.nickname = nickname;
+    }
+    if (patch.avatar !== undefined) {
+      const avatar = patch.avatar.trim();
+      if (avatar && !/^(https?:\/\/|\/uploads\/)/.test(avatar)) throw new Error('AVATAR_INVALID');
+      user.avatar = avatar;
+    }
+    this.changed();
+    return user;
   }
 
   getTopics(): Topic[] {
@@ -469,7 +509,7 @@ export class CampusStore {
     return this.comments
       .filter((c) => c.postId === postId && c.status === 'published')
       .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
-      .map((comment) => this.toCommentView(comment));
+      .map((comment) => this.toCommentView(comment, viewer));
   }
 
   createPost(input: CreatePostInput, token?: string, aiModeration?: ModerationResult | null): { post: Post; moderation: ModerationCase | null; message: string } {
@@ -1154,12 +1194,40 @@ export class CampusStore {
     return item;
   }
 
+  unbindOfficialOperator(accountId: string): OfficialAccount {
+    const item = this.officialAccounts.find((a) => a.id === accountId);
+    if (!item) throw new Error('OFFICIAL_ACCOUNT_NOT_FOUND');
+    const previous = this.users.find((user) => user.id === item.userId);
+    if (previous && !/^u_official(_|$)/.test(previous.id)) this.deactivateOfficial(previous);
+    const placeholderId = id('u_official');
+    this.users.push({
+      id: placeholderId,
+      publicId: placeholderId,
+      nickname: item.orgName,
+      avatar: '',
+      role: 'student',
+      level: 'L1',
+      isOfficial: false,
+      officialOrg: item.orgName,
+      createdAt: nowIso()
+    });
+    item.userId = placeholderId;
+    item.operatorUserId = undefined;
+    item.operatorNickname = undefined;
+    this.changed();
+    return item;
+  }
+
   createOfficialAccount(input: {
     orgName: string;
     orgId?: string;
     scope: string[];
     expiresAt: string;
   }): OfficialAccount {
+    const orgId = input.orgId?.trim();
+    if (orgId && this.officialAccounts.some((account) => account.orgId?.toLowerCase() === orgId.toLowerCase())) {
+      throw new Error('ORG_ID_EXISTS');
+    }
     const userId = id('u_official');
     const user: User = {
       id: userId,
@@ -1177,7 +1245,7 @@ export class CampusStore {
       id: id('oa'),
       userId,
       orgName: input.orgName,
-      orgId: input.orgId,
+      orgId,
       schoolId: 'campus',
       scope: input.scope,
       status: 'pending_school',
@@ -1192,8 +1260,16 @@ export class CampusStore {
   updateOfficialAccount(accountId: string, patch: { orgName?: string; orgId?: string; scope?: string[]; expiresAt?: string }): OfficialAccount | undefined {
     const item = this.officialAccounts.find((a) => a.id === accountId);
     if (!item) return undefined;
-    if (patch.orgName !== undefined) item.orgName = patch.orgName;
-    if (patch.orgId !== undefined) item.orgId = patch.orgId;
+    const nextOrgId = patch.orgId?.trim();
+    if (nextOrgId && this.officialAccounts.some((a) => a.id !== accountId && a.orgId?.toLowerCase() === nextOrgId.toLowerCase())) {
+      throw new Error('ORG_ID_EXISTS');
+    }
+    if (patch.orgName !== undefined) {
+      item.orgName = patch.orgName;
+      const owner = this.users.find((user) => user.id === item.userId);
+      if (owner && /^u_official(_|$)/.test(owner.id)) owner.nickname = patch.orgName;
+    }
+    if (patch.orgId !== undefined) item.orgId = nextOrgId;
     if (patch.scope !== undefined) item.scope = patch.scope;
     if (patch.expiresAt !== undefined) item.expiresAt = patch.expiresAt;
     this.changed();
@@ -1630,7 +1706,7 @@ export class CampusStore {
     };
   }
 
-  private toCommentView(comment: Comment): unknown {
+  private toCommentView(comment: Comment, viewer?: User): unknown {
     const author = this.users.find((u) => u.id === comment.authorId)!;
     const replyTo = comment.replyToUserId ? this.users.find((u) => u.id === comment.replyToUserId) : undefined;
     const parent = comment.parentId ? this.comments.find((c) => c.id === comment.parentId) : undefined;
@@ -1649,7 +1725,8 @@ export class CampusStore {
       },
       replyToNickname: replyTo ? (replyToAnonymous ? '匿名同学' : replyTo.nickname) : undefined,
       likeCount: comment.likeCount,
-      createdAt: comment.createdAt
+      createdAt: comment.createdAt,
+      isMine: Boolean(viewer && viewer.id === comment.authorId)
     };
   }
 

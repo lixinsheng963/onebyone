@@ -4,8 +4,9 @@
 
 ## 版本状态
 
-- 当前版本：`v0.3.0-rc.5`（2026-11-18）
-- 已跑通：小程序核心内容闭环、管理端 11 个栏目、MySQL 规范化持久化、Redis 限流、AI 文本审核/举报复核、邀请码、审计日志、RBAC/学校审核人、官方账号授权链与运营者绑定、用户治理、真实注销、申诉、单人终审（全风险等级）、图片安全适配器、生产配置校验与压测。
+- 当前版本：`v0.3.0-rc.6`（2026-11-21）
+- 已跑通：小程序核心内容闭环、管理端 11 个栏目、MySQL 规范化持久化、Redis 限流、AI 文本/图片举报复核、邀请码、审计日志、RBAC/学校审核人、官方账号授权链与运营者绑定、用户治理、真实注销、申诉、单人终审（全风险等级）、图片安全适配器、生产配置校验与压测。
+- v0.3.0-rc.6 补齐：官方账号无人运营、授权文件预览/下载、组织标识自动生成与唯一校验、中文日期禁过去；团队权限每类审核员限 1 人；用户治理 1 小时禁言、举报原因回填、恢复倒计时；举报显示被举报人；评论三点举报、禁止自举报、分享箭头、自定义话题、头像昵称与设置页；SMTP 邮件告警（Python 发送器，已实测发信）。
 - **当前是 Release Candidate，尚未完成正式线上部署。** 完整的上线阻断项、外部依赖、测试矩阵和完成定义见 [docs/PRODUCTION-READINESS.md](docs/PRODUCTION-READINESS.md)。
 - 距正式上线主要剩外部依赖与目标服务器验收：备案域名/HTTPS、正式微信 AppID、学校授权材料、图片审核供应商、真实备份恢复演练和真机验收。
 
@@ -117,7 +118,7 @@ docker compose -f deploy/docker-compose.yml up -d --build
 - 邀请码：客户端只接受管理后台发放的邀请码，旧的本地默认 `CAMPUS` 会在启动时自动吊销；MySQL `invite_codes` 已接入次数/过期/吊销校验，后台“邀请码”页可创建/吊销并实时显示已用次数，API 为 `GET/POST /api/v1/admin/invite-codes` 与 `POST /api/v1/admin/invite-codes/:id/revoke`。
 - 官方账号：后台可新建/编辑组织、绑定真实运营者、上传授权文件、学校审核人初审、平台复核、暂停/换绑/到期自动失效；授权文件只允许管理员下载，不能匿名访问。未绑定运营者不能复核生效，避免占位账号发布。
 - 运营手册：[docs/ADMIN-RUNBOOK.md](docs/ADMIN-RUNBOOK.md) 含官方账号、学校授权/审核人、团队权限的逐步操作与自测表；部署与监控见 [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)。
-- 监控告警：`deploy/scripts/healthcheck-alert.sh` 检查 `/healthz` + `/readyz`，状态变化时通过 `send-alert-email.sh` 发送邮件；默认收件人 `2576264825@qq.com`，需要在生产 env 配置 SMTP 地址/账号/授权码/发件人。
+- 监控告警：`deploy/scripts/healthcheck-alert.sh` 检查 `/healthz` + `/readyz`，状态变化时通过 `send-alert-email.py`/`send-alert-email.sh` 发送邮件（QQ SMTP 已实测发信）；默认收件人 `2576264825@qq.com`，需要在生产 env 配置 SMTP 地址/账号/授权码/发件人。
 - 账号治理：后台“用户治理”支持禁言/封禁/恢复；小程序设置页可真实注销；举报/申诉/审核均留审计记录。
 - 生产环境必须接入真实微信 `code2Session`、HTTPS、TOTP、MySQL、Redis、COS 与 DeepSeek。
 

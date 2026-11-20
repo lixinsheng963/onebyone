@@ -140,7 +140,9 @@ Page({
       actions.push({ label: this.data.post.pinnedAt ? '取消置顶' : '置顶', action: 'pin' });
       actions.push({ label: '删除这条内容', action: 'delete' });
     }
-    actions.push({ label: '举报这条内容', action: 'report' });
+    if (!(this.data.post && this.data.post.isMine)) {
+      actions.push({ label: '举报这条内容', action: 'report' });
+    }
     actions.push({ label: '复制内容链接', action: 'copy' });
     wx.showActionSheet({
       itemList: actions.map((item) => item.label),

@@ -70,6 +70,12 @@ function targetText(item: Report) {
   return target.nickname || '用户资料';
 }
 
+function targetName(item: Report) {
+  const target = item.target;
+  if (!target) return '—';
+  return target.authorName || target.nickname || '未知用户';
+}
+
 function aiLabel(ai?: Report['ai']) {
   if (!ai) return '未研判';
   return { reject: 'AI 建议驳回', uphold: 'AI 建议处理', needs_human: 'AI 转人工' }[ai.decision];
@@ -96,11 +102,12 @@ function aiClass(ai?: Report['ai']) {
       </div>
       <div class="card-body">
         <table class="table">
-          <thead><tr><th>内容</th><th>类型</th><th>原因</th><th>AI 初筛</th><th>举报人</th><th>时间</th><th>状态</th><th>操作</th></tr></thead>
+          <thead><tr><th>内容</th><th>类型</th><th>被举报人</th><th>原因</th><th>AI 初筛</th><th>举报人</th><th>时间</th><th>状态</th><th>操作</th></tr></thead>
           <tbody>
             <tr v-for="item in visible" :key="item.id" class="report-row" @click="openDetail(item)">
               <td class="target">{{ targetText(item) }}</td>
               <td><span class="badge badge-gray">{{ item.targetType }}</span></td>
+              <td>{{ targetName(item) }}<div class="muted">{{ item.target.authorId || '' }}</div></td>
               <td>{{ item.reason }}</td>
               <td>
                 <span class="badge" :class="aiClass(item.ai)">{{ aiLabel(item.ai) }}</span>

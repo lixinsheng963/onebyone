@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { getUsers, setUserStatus } from '../api';
 import { useLivePoll } from '../composables/useLivePoll';
@@ -17,8 +17,18 @@ const dialog = ref(false);
 const form = ref({
   user: null as AdminUser | null,
   status: 'active' as AdminUser['status'],
-  mutedUntil: '',
+  muteHours: 1,
   reason: ''
+});
+const now = ref(Date.now());
+let clock: number | undefined;
+onMounted(() => {
+  clock = window.setInterval(() => {
+    now.value = Date.now();
+  }, 1000);
+});
+onBeforeUnmount(() => {
+  if (clock) window.clearInterval(clock);
 });
 
 const statusLabels: Record<AdminUser['status'], string> = {
@@ -55,11 +65,14 @@ async function load() {
 useLivePoll(load, 3000);
 
 function open(item: AdminUser) {
+  const reportReason = item.lastReportReason
+    ? `${item.lastReportReason}${item.lastReportDetail ? `：${item.lastReportDetail}` : ''}`
+    : '';
   form.value = {
     user: item,
     status: item.status === 'active' ? 'muted' : item.status,
-    mutedUntil: item.mutedUntil ? item.mutedUntil.slice(0, 16).replace('T', ' ') : '',
-    reason: item.statusReason || ''
+    muteHours: 1,
+    reason: item.statusReason || reportReason
   };
   dialog.value = true;
 }
@@ -67,16 +80,9 @@ function open(item: AdminUser) {
 async function submit() {
   const user = form.value.user;
   if (!user) return;
-  if (form.value.status === 'muted' && !form.value.mutedUntil) {
-    ElMessage.warning('禁言必须选择截止时间');
+  if (form.value.status === 'muted' && form.value.muteHours !== 1) {
+    ElMessage.warning('当前仅支持禁言 1 小时');
     return;
-  }
-  if (form.value.status === 'muted') {
-    const until = new Date(form.value.mutedUntil.replace(' ', 'T'));
-    if (Number.isNaN(until.getTime()) || until.getTime() <= Date.now()) {
-      ElMessage.warning('禁言截止时间必须晚于当前时间');
-      return;
-    }
   }
   const label = statusLabels[form.value.status];
   if (form.value.status === 'banned' || form.value.status === 'deleted') {
@@ -95,7 +101,7 @@ async function submit() {
   saving.value = true;
   try {
     await setUserStatus(user.id, form.value.status, {
-      mutedUntil: form.value.status === 'muted' ? new Date(form.value.mutedUntil.replace(' ', 'T')).toISOString() : undefined,
+      mutedUntil: form.value.status === 'muted' ? new Date(Date.now() + 60 * 60 * 1000).toISOString() : undefined,
       reason: form.value.reason.trim() || undefined
     });
     ElMessage.success(`账号已设为${label}`);
@@ -113,6 +119,16 @@ function statusClass(status: AdminUser['status']) {
   if (status === 'muted') return 'badge-amber';
   if (status === 'banned') return 'badge-red';
   return 'badge-gray';
+}
+
+function remainingText(value?: string) {
+  if (!value) return '';
+  const diff = new Date(value).getTime() - now.value;
+  if (diff <= 0) return '已到期';
+  const total = Math.ceil(diff / 1000);
+  const minutes = Math.floor(total / 60);
+  const seconds = total % 60;
+  return `${minutes} 分 ${seconds} 秒后恢复`;
 }
 
 function dateText(value?: string) {
@@ -168,8 +184,10 @@ function dateText(value?: string) {
               </td>
               <td>
                 <span class="badge" :class="statusClass(item.status)">{{ statusLabels[item.status] }}</span>
+                <div v-if="item.status === 'muted' && item.mutedUntil" class="countdown">{{ remainingText(item.mutedUntil) }}</div>
                 <div v-if="item.status === 'muted' && item.mutedUntil" class="muted">至 {{ dateText(item.mutedUntil) }}</div>
                 <div v-if="item.statusReason" class="muted">{{ item.statusReason }}</div>
+                <div v-if="item.lastReportReason" class="report-hint">最近举报：{{ item.lastReportReason }}<span v-if="item.lastReportAt"> · {{ dateText(item.lastReportAt) }}</span></div>
               </td>
               <td class="muted">{{ item.postCount }} 发布 · {{ item.commentCount }} 评论</td>
               <td>
@@ -196,14 +214,11 @@ function dateText(value?: string) {
           </select>
         </label>
         <label v-if="form.status === 'muted'" class="field">
-          <span>禁言截止时间</span>
-          <el-date-picker
-            v-model="form.mutedUntil"
-            type="datetime"
-            value-format="YYYY-MM-DD HH:mm:ss"
-            placeholder="选择截止时间"
-            style="width: 100%"
-          />
+          <span>禁言时长</span>
+          <el-select v-model="form.muteHours" style="width: 100%">
+            <el-option label="1 小时" :value="1" />
+          </el-select>
+          <small class="muted">当前只开放 1 小时；保存后从当前时间开始计算恢复倒计时。</small>
         </label>
         <label class="field">
           <span>处理说明</span>
@@ -248,5 +263,17 @@ function dateText(value?: string) {
   display: grid;
   gap: 6px;
   font-size: 13px;
+}
+.countdown {
+  margin-top: 4px;
+  color: #b42318;
+  font-size: 11px;
+  font-weight: 600;
+}
+.report-hint {
+  margin-top: 4px;
+  color: #a15c00;
+  font-size: 10px;
+  line-height: 1.5;
 }
 </style>

@@ -147,11 +147,19 @@ export class AdminController {
     const identity = this.requireAdmin(req, ['platform_admin']);
     const orgName = requireText(body?.orgName, 80, '组织名称');
     const orgId = optionalText(body?.orgId, 64, '组织标识');
+    if (orgId && !/^[a-z0-9]+(?:_[a-z0-9]+)+$/.test(orgId)) {
+      throw new BadRequestException('组织标识格式应为小写字母/数字，并用下划线连接，例如 org_library');
+    }
     const scope = this.assertOfficialScope(body?.scope);
     const expiresAt = this.futureDate(body?.expiresAt, '授权有效期');
-    const result = this.store.createOfficialAccount({ orgName, orgId, scope, expiresAt });
-    await this.audit(req, 'official.create', 'official_account', result.id, null, result, identity);
-    return ok(result);
+    try {
+      const result = this.store.createOfficialAccount({ orgName, orgId, scope, expiresAt });
+      await this.audit(req, 'official.create', 'official_account', result.id, null, result, identity);
+      return ok(result);
+    } catch (error) {
+      if ((error as Error).message === 'ORG_ID_EXISTS') throw new BadRequestException('组织标识已被使用，请换一个');
+      throw error;
+    }
   }
 
   @Put('official-accounts/:accountId')
@@ -163,13 +171,23 @@ export class AdminController {
     const before = this.snapshot(target);
     const patch: { orgName?: string; orgId?: string; scope?: string[]; expiresAt?: string } = {};
     if (body?.orgName !== undefined) patch.orgName = requireText(body.orgName, 80, '组织名称');
-    if (body?.orgId !== undefined) patch.orgId = optionalText(body.orgId, 64, '组织标识');
+    if (body?.orgId !== undefined) {
+      patch.orgId = optionalText(body.orgId, 64, '组织标识');
+      if (patch.orgId && !/^[a-z0-9]+(?:_[a-z0-9]+)+$/.test(patch.orgId)) {
+        throw new BadRequestException('组织标识格式应为小写字母/数字，并用下划线连接，例如 org_library');
+      }
+    }
     if (body?.scope !== undefined) patch.scope = this.assertOfficialScope(body.scope);
     if (body?.expiresAt !== undefined) patch.expiresAt = this.futureDate(body.expiresAt, '授权有效期');
-    const result = this.store.updateOfficialAccount(accountId, patch);
-    if (!result) throw new BadRequestException('官方账号不存在');
-    await this.audit(req, 'official.update', 'official_account', accountId, before, result, identity);
-    return ok(result);
+    try {
+      const result = this.store.updateOfficialAccount(accountId, patch);
+      if (!result) throw new BadRequestException('官方账号不存在');
+      await this.audit(req, 'official.update', 'official_account', accountId, before, result, identity);
+      return ok(result);
+    } catch (error) {
+      if ((error as Error).message === 'ORG_ID_EXISTS') throw new BadRequestException('组织标识已被使用，请换一个');
+      throw error;
+    }
   }
 
   @Post('official-accounts/:accountId/authorization')
@@ -237,9 +255,15 @@ export class AdminController {
     assertId(accountId, '官方账号');
     const target = this.store.getOfficialAccount(accountId);
     if (!target) throw new BadRequestException('官方账号不存在');
-    const userPublicId = requireText(body?.userId, 96, '运营者用户 ID');
+    const rawUserId = typeof body?.userId === 'string' ? body.userId.trim() : '';
     const before = this.snapshot(target);
     try {
+      if (!rawUserId || rawUserId === '__none__') {
+        const result = this.store.unbindOfficialOperator(accountId);
+        await this.audit(req, 'official.operator.unbind', 'official_account', accountId, before, result, identity);
+        return ok(result);
+      }
+      const userPublicId = requireText(rawUserId, 96, '运营者用户 ID');
       const result = this.store.bindOfficialOperator(accountId, userPublicId);
       await this.audit(req, 'official.operator.bind', 'official_account', accountId, before, result, identity);
       return ok(result);
@@ -483,6 +507,9 @@ export class AdminController {
       return ok(result);
     } catch (error) {
       const message = (error as Error).message;
+      if (message === 'ADMIN_OPERATOR_LIMIT') {
+        throw new BadRequestException(role === 'content_reviewer' ? '内容审核员只能设置 1 人' : '学校审核人只能设置 1 人');
+      }
       if (message === 'ADMIN_EMAIL_EXISTS' || message === 'ADMIN_EMAIL_INVALID'
         || message === 'ADMIN_PASSWORD_TOO_SHORT' || message === 'SCHOOL_REVIEWER_SCOPE_REQUIRED') {
         throw new BadRequestException(message === 'ADMIN_EMAIL_EXISTS' ? '该邮箱已存在' : '操作员信息不合法');

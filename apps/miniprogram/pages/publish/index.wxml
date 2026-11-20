@@ -63,6 +63,15 @@
         bindtap="onTopic"
       >{{item}}</view>
     </view>
+    <view class="topic-list custom-topics">
+      <view wx:for="{{customTopics}}" wx:key="*this" class="topic custom {{topic === item ? 'active' : ''}}" data-topic="{{item}}" bindtap="onTopic">
+        {{item}}<text class="topic-x" catchtap="removeTopic" data-topic="{{item}}">×</text>
+      </view>
+      <view class="topic-add">
+        <input value="{{newTopic}}" maxlength="6" placeholder="自定义话题" bindinput="onTopicInput" bindconfirm="addTopic" />
+        <text catchtap="addTopic">＋</text>
+      </view>
+    </view>
 
     <view class="setting-line">
       <text class="setting-label inline">地点</text>

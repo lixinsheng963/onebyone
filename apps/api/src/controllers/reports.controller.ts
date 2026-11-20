@@ -31,6 +31,7 @@ export class ReportsController {
           targetType,
           targetText: targetText || '',
           hasMedia: Boolean(target.media?.length),
+          images: target.media,
           context: target.type === 'comment' ? target.postText : undefined
         });
         if (ai) {

@@ -121,3 +121,9 @@
   font-size: 26rpx;
   line-height: 1.6;
 }
+
+.comment-actions { position: relative; align-items: center; }
+.more-wrap { margin-left: auto; position: relative; }
+.more-dot { display: block; padding: 0 4rpx; color: #9b9f99; font-size: 30rpx; line-height: 1; letter-spacing: 2rpx; }
+.more-menu { position: absolute; right: 0; bottom: 42rpx; z-index: 20; min-width: 128rpx; padding: 12rpx 0; background: #fff; border: 1rpx solid #eee5d8; border-radius: 10rpx; box-shadow: 0 8rpx 24rpx rgba(44, 39, 32, .14); text-align: center; }
+.more-menu text { display: block; padding: 8rpx 20rpx; color: #8f3f35; font-size: 24rpx; }

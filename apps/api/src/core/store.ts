@@ -584,7 +584,7 @@ export class CampusStore {
     };
   }
 
-  createComment(postId: string, text: string, token?: string, parentId?: string, anonymity = true, aiModeration?: ModerationResult | null): { comment: Comment; message: string } {
+  createComment(postId: string, text: string, token?: string, parentId?: string, anonymity = false, aiModeration?: ModerationResult | null): { comment: Comment; message: string } {
     const user = this.getUserByToken(token);
     if (!user) throw new Error('AUTH_REQUIRED');
     this.assertAccountUsable(user);
@@ -906,6 +906,7 @@ export class CampusStore {
       createdAt: comment.createdAt,
       author: {
         nickname: comment.anonymity ? '匿名同学' : (author?.nickname || '同学'),
+        avatar: comment.anonymity ? '' : (author?.avatar || ''),
         alias: comment.anonymity ? comment.anonymousAlias : undefined,
         isAnonymous: comment.anonymity,
         isOfficial: Boolean(author?.isOfficial)
@@ -1735,6 +1736,7 @@ export class CampusStore {
       text: comment.text,
       author: {
         nickname: comment.anonymity ? '匿名同学' : author.nickname,
+        avatar: comment.anonymity ? '' : author.avatar,
         alias: comment.anonymity ? comment.anonymousAlias : undefined,
         isAnonymous: comment.anonymity,
         isOfficial: author.isOfficial

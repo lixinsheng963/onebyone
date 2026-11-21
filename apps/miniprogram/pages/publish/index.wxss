@@ -1,5 +1,5 @@
 .publish {
-  padding: 24rpx 32rpx 240rpx;
+  padding: 24rpx 32rpx 180rpx;
 }
 
 .top-row {
@@ -223,12 +223,9 @@
 }
 
 .publish-footer {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 100rpx;
-  z-index: 20;
-  padding: 14rpx 32rpx calc(14rpx + env(safe-area-inset-bottom));
+  position: static;
+  margin: 30rpx -32rpx 0;
+  padding: 18rpx 32rpx;
   background: rgba(247, 245, 240, 0.97);
   border-top: 1rpx solid #e7e1d5;
 }

@@ -1,5 +1,6 @@
 const config = require('./config');
 const mock = require('./mock');
+const { initial } = require('./format');
 
 function token() {
   return wx.getStorageSync('campus_token') || '';
@@ -132,6 +133,8 @@ function normalizePost(post) {
     favorited: Boolean(post.favorited),
     author: {
       nickname: author.nickname || '同学',
+      avatar: author.avatar || '',
+      initial: initial(author.isAnonymous ? author.alias : author.nickname),
       alias: author.alias,
       isAnonymous: Boolean(author.isAnonymous),
       isOfficial: Boolean(author.isOfficial),
@@ -141,11 +144,18 @@ function normalizePost(post) {
 }
 
 function normalizeComment(comment) {
+  const author = Object.assign({}, comment.author || {});
+  author.avatar = author.avatar || '';
+  author.initial = initial(author.isAnonymous ? author.alias : author.nickname);
   return Object.assign({}, comment, {
+    author,
     time: comment.time || comment.createdAt,
-    replies: (comment.replies || []).map((reply) => Object.assign({}, reply, {
-      time: reply.time || reply.createdAt
-    }))
+    replies: (comment.replies || []).map((reply) => {
+      const replyAuthor = Object.assign({}, reply.author || {});
+      replyAuthor.avatar = replyAuthor.avatar || '';
+      replyAuthor.initial = initial(replyAuthor.isAnonymous ? replyAuthor.alias : replyAuthor.nickname);
+      return Object.assign({}, reply, { author: replyAuthor, time: reply.time || reply.createdAt });
+    })
   });
 }
 

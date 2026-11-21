@@ -172,6 +172,7 @@ function dateText(value?: string) {
               <td>
                 <div class="user-cell">
                   <img v-if="item.avatar" class="avatar" :src="item.avatar" alt="" />
+                  <div v-else class="avatar avatar-fallback">{{ (item.nickname || '?').slice(0, 1) }}</div>
                   <div>
                     <b>{{ item.nickname }}</b>
                     <div class="muted">{{ item.id }}</div>
@@ -254,6 +255,15 @@ function dateText(value?: string) {
   height: 34px;
   border-radius: 50%;
   object-fit: cover;
+  flex: none;
+}
+.avatar-fallback {
+  display: grid;
+  place-items: center;
+  background: #f3e4df;
+  color: #9c3d32;
+  font-family: "Songti SC", "SimSun", serif;
+  font-size: 15px;
 }
 .form-stack {
   display: grid;

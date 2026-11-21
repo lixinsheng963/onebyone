@@ -1,6 +1,7 @@
 <view class="comment">
   <view class="comment-main">
-    <view class="avatar">{{comment.author.initial}}</view>
+    <image wx:if="{{comment.author.avatar && !comment.author.isAnonymous}}" class="avatar" src="{{comment.author.avatar}}" mode="aspectFill" lazy-load />
+    <view wx:else class="avatar">{{comment.author.initial}}</view>
     <view class="comment-copy">
       <view class="author-row">
         <text class="comment-author">{{comment.author.isAnonymous ? comment.author.alias : comment.author.nickname}}</text>
@@ -13,7 +14,7 @@
         <view class="more-wrap">
           <text class="more-dot" catchtap="onMenu" data-id="{{comment.id}}" data-kind="comment">···</text>
           <view wx:if="{{menuId === comment.id}}" class="more-menu">
-            <text wx:if="{{!comment.isMine}}" catchtap="onReport" data-id="{{comment.id}}" data-kind="comment">举报</text>
+            <text wx:if="{{!comment.isMine}}" catchtap="onReport" data-id="{{comment.id}}" data-kind="comment">举报这条评论</text>
             <text wx:else class="more-self">自己的评论</text>
           </view>
         </view>
@@ -21,7 +22,8 @@
 
       <view wx:if="{{comment.replies.length}}" class="replies">
         <view wx:for="{{comment.replies}}" wx:key="id" class="reply">
-          <view class="reply-avatar">{{item.author.initial}}</view>
+          <image wx:if="{{item.author.avatar && !item.author.isAnonymous}}" class="reply-avatar" src="{{item.author.avatar}}" mode="aspectFill" lazy-load />
+          <view wx:else class="reply-avatar">{{item.author.initial}}</view>
           <view class="reply-copy">
             <view class="reply-head">
               <text class="reply-author">{{item.author.isAnonymous ? item.author.alias : item.author.nickname}}</text>
@@ -34,7 +36,7 @@
               <view class="more-wrap">
                 <text class="more-dot" catchtap="onMenu" data-id="{{item.id}}" data-kind="reply">···</text>
                 <view wx:if="{{menuId === item.id}}" class="more-menu">
-                  <text wx:if="{{!item.isMine}}" catchtap="onReport" data-id="{{item.id}}" data-kind="reply">举报</text>
+                  <text wx:if="{{!item.isMine}}" catchtap="onReport" data-id="{{item.id}}" data-kind="reply">举报这条评论</text>
                   <text wx:else class="more-self">自己的评论</text>
                 </view>
               </view>

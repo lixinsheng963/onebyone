@@ -8,7 +8,7 @@ Page({
     loading: true,
     commentText: '',
     replyTarget: null,
-    anonymity: true,
+    anonymity: false,
     focus: false,
     sending: false,
     user: null,
@@ -26,10 +26,12 @@ Page({
 
   onShow() {
     this.setData({ user: api.getUser() });
+    if (this._shown) this.load(false);
+    this._shown = true;
   },
 
-  async load() {
-    this.setData({ loading: true, error: '' });
+  async load(showLoading = true) {
+    this.setData({ loading: showLoading, error: '' });
     try {
       const data = await api.getPost(this.postId);
       if (!data) {

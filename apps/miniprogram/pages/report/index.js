@@ -16,11 +16,17 @@ Page({
     detail: '',
     submitting: false,
     type: 'post',
-    id: ''
+    id: '',
+    title: '举报这条内容'
   },
 
   onLoad(options) {
-    this.setData({ type: options.type || 'post', id: options.id || '' });
+    const type = options.type || 'post';
+    this.setData({
+      type,
+      id: options.id || '',
+      title: type === 'comment' ? '举报这条评论' : '举报这条内容'
+    });
   },
 
   select(e) {

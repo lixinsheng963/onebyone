@@ -241,6 +241,7 @@
 }
 
 .action-icon-wrap {
+  flex: 0 0 78rpx;
   width: 78rpx;
   height: 68rpx;
   display: flex;
@@ -375,11 +376,14 @@
   animation: none;
 }
 .share-action {
+  flex: 0 0 78rpx;
+  width: 78rpx;
   padding: 0;
   margin: 0;
   border: 0;
   background: transparent;
   line-height: 1;
+  box-sizing: border-box;
 }
 .share-action::after { border: 0; }
 .share-icon { width: 36rpx; height: 36rpx; }

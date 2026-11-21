@@ -5,7 +5,8 @@
       <view class="me-kicker">MY CAMPUS</view>
       <view class="me-title serif">我的日常</view>
       <view class="me-profile">
-        <view class="me-avatar">{{userInitial}}</view>
+        <image wx:if="{{user.avatar}}" class="me-avatar" src="{{user.avatar}}" mode="aspectFill" lazy-load />
+        <view wx:else class="me-avatar">{{userInitial}}</view>
         <view class="me-profile-copy">
           <view class="me-name">
             {{user.nickname}}

@@ -43,7 +43,8 @@
         </view>
 
         <view class="author-row">
-          <view class="author-avatar">{{post.author.initial}}</view>
+          <image wx:if="{{post.author.avatar && !post.author.isAnonymous}}" class="author-avatar" src="{{post.author.avatar}}" mode="aspectFill" lazy-load />
+          <view wx:else class="author-avatar">{{post.author.initial}}</view>
           <view class="author-copy">
             <view class="author-name">
               {{post.author.isAnonymous ? post.author.alias : post.author.nickname}}

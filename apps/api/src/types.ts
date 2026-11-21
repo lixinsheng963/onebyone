@@ -311,6 +311,7 @@ export interface CommentThreadItem {
   createdAt: string;
   author: {
     nickname: string;
+    avatar?: string;
     alias?: string;
     isAnonymous: boolean;
     isOfficial: boolean;

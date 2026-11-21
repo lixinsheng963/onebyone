@@ -27,7 +27,8 @@
     </view>
 
     <view class="author">
-      <view class="avatar">{{post.author.initial || '同'}}</view>
+      <image wx:if="{{post.author.avatar && !post.author.isAnonymous}}" class="avatar" src="{{post.author.avatar}}" mode="aspectFill" lazy-load />
+      <view wx:else class="avatar">{{post.author.initial || '同'}}</view>
       <text class="name">{{post.author.isAnonymous ? post.author.alias : post.author.nickname}}</text>
       <text wx:if="{{post.author.isOfficial}}" class="official">官方</text>
       <text class="time">{{post.timeText}}</text>

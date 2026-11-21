@@ -100,7 +100,8 @@
           wx:key="id"
           class="thread-comment {{comment.context ? 'context' : ''}}"
         >
-          <view class="thread-avatar">{{comment.authorInitial}}</view>
+          <image wx:if="{{comment.author.avatar && !comment.author.isAnonymous}}" class="thread-avatar" src="{{comment.author.avatar}}" mode="aspectFill" lazy-load />
+          <view wx:else class="thread-avatar">{{comment.authorInitial}}</view>
           <view class="thread-body">
             <view class="thread-name-line">
               <text class="thread-name">{{comment.authorName}}</text>

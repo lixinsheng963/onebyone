@@ -81,7 +81,8 @@
     <view class="form-title serif">认证成功</view>
     <view class="form-sub">现在可以发布、评论和点赞。请先读一遍社区公约，再开始分享。</view>
     <view class="done-card">
-      <view class="done-avatar">{{userInitial}}</view>
+      <image wx:if="{{user.avatar}}" class="done-avatar" src="{{user.avatar}}" mode="aspectFill" />
+      <view wx:else class="done-avatar">{{userInitial}}</view>
       <view>
         <text class="done-name">{{user.nickname || '本校同学'}}</text>
         <text>L2 校园认证 · {{user.school || '示例大学'}}</text>

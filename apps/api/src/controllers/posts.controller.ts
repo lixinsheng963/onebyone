@@ -214,7 +214,7 @@ export class PostsController {
     ]);
     const extra = ai && wechat ? mergeModeration(wechat, ai) : ai || wechat;
     try {
-      return ok(this.store.createComment(publicId, text, token, replyToCommentId, body?.anonymity !== false, extra));
+      return ok(this.store.createComment(publicId, text, token, replyToCommentId, body?.anonymity === true, extra));
     } catch (error) {
       this.mapPostError(error);
     }

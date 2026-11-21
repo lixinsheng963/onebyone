@@ -9,12 +9,18 @@ Page({
     text: '',
     textLength: 0,
     topics: TOPICS,
+    topicOptions: TOPICS,
     customTopics: [],
+    deletedTopics: [],
+    deleteTopic: '',
+    addingTopic: false,
     newTopic: '',
     topic: '',
     locations: LOCATIONS,
     locationIndex: -1,
     location: '',
+    latitude: null,
+    longitude: null,
     anonymity: false,
     commentsEnabled: true,
     submitting: false,
@@ -23,8 +29,13 @@ Page({
 
   onLoad() {
     const savedTopics = wx.getStorageSync('campus_custom_topics');
+    const savedDeleted = wx.getStorageSync('campus_deleted_topics');
+    const customTopics = Array.isArray(savedTopics) ? savedTopics.slice(0, 12) : [];
+    const deletedTopics = Array.isArray(savedDeleted) ? savedDeleted.filter((item) => TOPICS.includes(item)) : [];
     this.setData({
-      customTopics: Array.isArray(savedTopics) ? savedTopics.slice(0, 12) : []
+      customTopics,
+      deletedTopics,
+      topicOptions: this.buildTopicOptions(customTopics, deletedTopics)
     });
     const draft = wx.getStorageSync('campus_draft');
     if (draft) {
@@ -34,6 +45,8 @@ Page({
         textLength: (draft.text || '').length,
         topic: draft.topic || '',
         location: draft.location || '',
+        latitude: draft.latitude ?? null,
+        longitude: draft.longitude ?? null,
         anonymity: Boolean(draft.anonymity),
         commentsEnabled: draft.commentsEnabled !== false
       });
@@ -45,9 +58,9 @@ Page({
   },
 
   saveDraft() {
-    const { images, text, topic, location, anonymity, commentsEnabled } = this.data;
+    const { images, text, topic, location, latitude, longitude, anonymity, commentsEnabled } = this.data;
     if (!images.length && !text.trim()) return;
-    wx.setStorageSync('campus_draft', { images, text, topic, location, anonymity, commentsEnabled });
+    wx.setStorageSync('campus_draft', { images, text, topic, location, latitude, longitude, anonymity, commentsEnabled });
     this.setData({ draftSaved: true });
   },
 
@@ -83,40 +96,93 @@ Page({
     this.setData({ text, textLength: text.length });
   },
 
+  buildTopicOptions(customTopics, deletedTopics) {
+    return TOPICS.filter((item) => !deletedTopics.includes(item)).concat(customTopics);
+  },
+
   onTopic(e) {
     const topic = e.currentTarget.dataset.topic;
-    this.setData({ topic: topic === this.data.topic ? '' : topic });
+    this.setData({ topic: topic === this.data.topic ? '' : topic, deleteTopic: '' });
+  },
+
+  onTopicLongPress(e) {
+    const topic = e.currentTarget.dataset.topic;
+    wx.vibrateShort && wx.vibrateShort({ type: 'light' });
+    this.setData({ deleteTopic: topic });
   },
 
   onTopicInput(e) {
     this.setData({ newTopic: e.detail.value });
   },
 
+  startAddTopic() {
+    this.setData({ addingTopic: true, newTopic: '' });
+  },
+
   addTopic() {
     const topic = (this.data.newTopic || '').trim();
     if (!topic) return;
     if (topic.length > 6) return wx.showToast({ title: '话题最多 6 个字', icon: 'none' });
-    if (TOPICS.includes(topic) || this.data.customTopics.includes(topic)) {
-      return wx.showToast({ title: '这个话题已经有了', icon: 'none' });
+    if (this.data.topicOptions.includes(topic)) {
+      this.setData({ topic, addingTopic: false, newTopic: '' });
+      return wx.showToast({ title: '已选择这个话题', icon: 'none' });
     }
     if (this.data.customTopics.length >= 12) {
       return wx.showToast({ title: '最多保存 12 个自定义话题', icon: 'none' });
     }
     const customTopics = this.data.customTopics.concat(topic);
+    const deletedTopics = this.data.deletedTopics.filter((item) => item !== topic);
     wx.setStorageSync('campus_custom_topics', customTopics);
-    this.setData({ customTopics, newTopic: '', topic });
+    wx.setStorageSync('campus_deleted_topics', deletedTopics);
+    this.setData({
+      customTopics,
+      deletedTopics,
+      topicOptions: this.buildTopicOptions(customTopics, deletedTopics),
+      newTopic: '',
+      addingTopic: false,
+      topic
+    });
   },
 
   removeTopic(e) {
     const topic = e.currentTarget.dataset.topic;
+    const isDefault = TOPICS.includes(topic);
     const customTopics = this.data.customTopics.filter((item) => item !== topic);
+    const deletedTopics = isDefault
+      ? Array.from(new Set(this.data.deletedTopics.concat(topic)))
+      : this.data.deletedTopics;
     wx.setStorageSync('campus_custom_topics', customTopics);
-    this.setData({ customTopics, topic: this.data.topic === topic ? '' : this.data.topic });
+    wx.setStorageSync('campus_deleted_topics', deletedTopics);
+    this.setData({
+      customTopics,
+      deletedTopics,
+      topicOptions: this.buildTopicOptions(customTopics, deletedTopics),
+      deleteTopic: '',
+      topic: this.data.topic === topic ? '' : this.data.topic
+    });
   },
 
-  onLocation(e) {
-    const index = Number(e.detail.value);
-    this.setData({ locationIndex: index, location: LOCATIONS[index] || '' });
+  chooseLocation() {
+    wx.chooseLocation({
+      success: (res) => {
+        if (!res || !res.name) return;
+        this.setData({
+          location: res.name,
+          latitude: res.latitude,
+          longitude: res.longitude
+        });
+      },
+      fail: (error) => {
+        if (error && /auth deny|authorize/i.test(error.errMsg || '')) {
+          wx.showModal({
+            title: '需要位置权限',
+            content: '请在设置中允许使用位置信息，才能选择地图地点。',
+            confirmText: '去设置',
+            success: (res) => { if (res.confirm) wx.openSetting(); }
+          });
+        }
+      }
+    });
   },
 
   onAnonChange(e) {
@@ -172,6 +238,8 @@ Page({
         mediaIds,
         topic: this.data.topic,
         location: this.data.location,
+        latitude: this.data.latitude,
+        longitude: this.data.longitude,
         anonymity: this.data.anonymity,
         commentsEnabled: this.data.commentsEnabled
       });

@@ -759,8 +759,8 @@ export class StoreService extends CampusStore implements OnModuleDestroy {
 
     const [postRows] = await this.pool.query<any[]>(
       `SELECT p.id, p.public_id, p.author_id, p.text, p.topic_id, p.location_id,
-              p.anonymity, p.anonymous_alias, p.status, p.risk_level, p.featured,
-              p.comments_enabled, p.like_count, p.favorite_count, p.comment_count,
+              p.latitude, p.longitude, p.anonymity, p.anonymous_alias, p.status, p.risk_level, p.featured,
+              p.comments_enabled, p.like_count, p.favorite_count, p.share_count, p.comment_count,
               p.unique_viewers, p.unique_commenters, p.heat_score, p.published_at,
               p.pinned_at, p.created_at
        FROM posts p ORDER BY p.id`
@@ -777,6 +777,8 @@ export class StoreService extends CampusStore implements OnModuleDestroy {
         media: [],
         topic: topic ? asString(topic.name) : undefined,
         location: location ? asString(location.name) : undefined,
+        latitude: row.latitude === null || row.latitude === undefined ? undefined : Number(row.latitude),
+        longitude: row.longitude === null || row.longitude === undefined ? undefined : Number(row.longitude),
         anonymity: Boolean(row.anonymity),
         anonymousAlias: row.anonymous_alias || undefined,
         status: ['pending', 'published', 'rejected', 'hidden'].includes(row.status) ? row.status : 'pending',
@@ -785,6 +787,7 @@ export class StoreService extends CampusStore implements OnModuleDestroy {
         commentsEnabled: Boolean(row.comments_enabled),
         likeCount: asNumber(row.like_count),
         favoriteCount: asNumber(row.favorite_count),
+        shareCount: asNumber(row.share_count),
         commentCount: asNumber(row.comment_count),
         uniqueViewers: asNumber(row.unique_viewers),
         uniqueCommenters: asNumber(row.unique_commenters),
@@ -1267,15 +1270,17 @@ export class StoreService extends CampusStore implements OnModuleDestroy {
       const topicId = await this.ensureTopic(connection, post.topic);
       const locationId = await this.ensureLocation(connection, post.location);
       const [result] = await connection.query<ResultSetHeader>(
-        `INSERT INTO posts (public_id, author_id, text, topic_id, location_id, anonymity, anonymous_alias,
-           status, risk_level, featured, comments_enabled, like_count, favorite_count, comment_count,
+        `INSERT INTO posts (public_id, author_id, text, topic_id, location_id, latitude, longitude,
+           anonymity, anonymous_alias, status, risk_level, featured, comments_enabled,
+           like_count, favorite_count, share_count, comment_count,
            unique_viewers, unique_commenters, heat_score, published_at, pinned_at, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id), author_id = VALUES(author_id), text = VALUES(text),
-           topic_id = VALUES(topic_id), location_id = VALUES(location_id), anonymity = VALUES(anonymity),
+           topic_id = VALUES(topic_id), location_id = VALUES(location_id), latitude = VALUES(latitude),
+           longitude = VALUES(longitude), anonymity = VALUES(anonymity),
            anonymous_alias = VALUES(anonymous_alias), status = VALUES(status), risk_level = VALUES(risk_level),
            featured = VALUES(featured), comments_enabled = VALUES(comments_enabled), like_count = VALUES(like_count),
-           favorite_count = VALUES(favorite_count), comment_count = VALUES(comment_count),
+           favorite_count = VALUES(favorite_count), share_count = VALUES(share_count), comment_count = VALUES(comment_count),
            unique_viewers = VALUES(unique_viewers), unique_commenters = VALUES(unique_commenters),
            heat_score = VALUES(heat_score), published_at = VALUES(published_at), pinned_at = VALUES(pinned_at)`,
         [
@@ -1284,6 +1289,8 @@ export class StoreService extends CampusStore implements OnModuleDestroy {
           post.text,
           topicId,
           locationId,
+          post.latitude ?? null,
+          post.longitude ?? null,
           post.anonymity ? 1 : 0,
           post.anonymousAlias || null,
           post.status,
@@ -1292,6 +1299,7 @@ export class StoreService extends CampusStore implements OnModuleDestroy {
           post.commentsEnabled ? 1 : 0,
           post.likeCount,
           post.favoriteCount,
+          post.shareCount,
           post.commentCount,
           post.uniqueViewers,
           post.uniqueCommenters,

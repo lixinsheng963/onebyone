@@ -34,6 +34,8 @@ export interface CreatePostInput {
   media?: Media[];
   topic?: string;
   location?: string;
+  latitude?: number;
+  longitude?: number;
   anonymity?: boolean;
   commentsEnabled?: boolean;
   mediaIds?: string[];
@@ -533,6 +535,8 @@ export class CampusStore {
       media: selectedMedia.length ? selectedMedia : input.media ?? [],
       topic: input.topic,
       location: input.location,
+      latitude: input.latitude,
+      longitude: input.longitude,
       anonymity: Boolean(input.anonymity),
       anonymousAlias: input.anonymity ? this.aliasFor(user.id, `draft_${Date.now()}`) : undefined,
       status: autoPublish ? 'published' : 'pending',
@@ -541,6 +545,7 @@ export class CampusStore {
       commentsEnabled: input.commentsEnabled !== false,
       likeCount: 0,
       favoriteCount: 0,
+      shareCount: 0,
       commentCount: 0,
       uniqueViewers: 0,
       uniqueCommenters: 0,
@@ -665,6 +670,14 @@ export class CampusStore {
     }
     this.changed();
     return { favorited: post.favoritedBy.has(user.id), count: post.favoriteCount };
+  }
+
+  recordShare(postId: string): { count: number } {
+    const post = this.findPost(postId);
+    if (post.status !== 'published') throw new Error('NOT_FOUND');
+    post.shareCount = (post.shareCount || 0) + 1;
+    this.changed();
+    return { count: post.shareCount };
   }
 
   recordView(postId: string, viewerKey: string): { counted: boolean; uniqueViewers: number } {
@@ -1682,6 +1695,8 @@ export class CampusStore {
       media: post.media,
       topic: post.topic,
       location: post.location,
+      latitude: post.latitude,
+      longitude: post.longitude,
       author: {
         nickname: isAnonymous ? '匿名同学' : author.nickname,
         avatar: isAnonymous ? '' : author.avatar,
@@ -1694,6 +1709,7 @@ export class CampusStore {
       likeCount: post.likeCount,
       commentCount: post.commentCount,
       favoriteCount: post.favoriteCount,
+      shareCount: post.shareCount || 0,
       liked: Boolean(viewer && post.likedBy.has(viewer.id)),
       favorited: Boolean(viewer && post.favoritedBy.has(viewer.id)),
       commentsEnabled: post.commentsEnabled,
@@ -1726,7 +1742,8 @@ export class CampusStore {
       replyToNickname: replyTo ? (replyToAnonymous ? '匿名同学' : replyTo.nickname) : undefined,
       likeCount: comment.likeCount,
       createdAt: comment.createdAt,
-      isMine: Boolean(viewer && viewer.id === comment.authorId)
+      isMine: Boolean(viewer && viewer.id === comment.authorId),
+      replies: [] as unknown[]
     };
   }
 

@@ -10,10 +10,11 @@
       <view class="comment-text">{{comment.text}}</view>
       <view class="comment-actions">
         <text catchtap="onReply">回复</text>
-        <view wx:if="{{!comment.isMine}}" class="more-wrap">
+        <view class="more-wrap">
           <text class="more-dot" catchtap="onMenu" data-id="{{comment.id}}" data-kind="comment">···</text>
           <view wx:if="{{menuId === comment.id}}" class="more-menu">
-            <text catchtap="onReport" data-id="{{comment.id}}" data-kind="comment">举报</text>
+            <text wx:if="{{!comment.isMine}}" catchtap="onReport" data-id="{{comment.id}}" data-kind="comment">举报</text>
+            <text wx:else class="more-self">自己的评论</text>
           </view>
         </view>
       </view>
@@ -30,10 +31,11 @@
             <view class="reply-text">{{item.text}}</view>
             <view class="comment-actions">
               <text catchtap="onReply" data-reply-id="{{item.id}}">回复</text>
-              <view wx:if="{{!item.isMine}}" class="more-wrap">
+              <view class="more-wrap">
                 <text class="more-dot" catchtap="onMenu" data-id="{{item.id}}" data-kind="reply">···</text>
                 <view wx:if="{{menuId === item.id}}" class="more-menu">
-                  <text catchtap="onReport" data-id="{{item.id}}" data-kind="reply">举报</text>
+                  <text wx:if="{{!item.isMine}}" catchtap="onReport" data-id="{{item.id}}" data-kind="reply">举报</text>
+                  <text wx:else class="more-self">自己的评论</text>
                 </view>
               </view>
             </view>

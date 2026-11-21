@@ -36,6 +36,12 @@ function emptyForm() {
 }
 const form = ref(emptyForm());
 
+function disabledDate(date: Date) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return date.getTime() < today.getTime();
+}
+
 const sorted = computed(() => [...items.value].sort((a, b) => Number(b.type === 'emergency') - Number(a.type === 'emergency')));
 
 function choose(item: Notice) {
@@ -102,7 +108,7 @@ async function publish() {
           <div class="field"><label>来源</label><input v-model="form.source" class="input" placeholder="例如：学校图书馆" /></div>
           <div class="field full"><label>标题</label><input v-model="form.title" class="input" placeholder="例如：东区今晚 22:00 起停水" /></div>
           <div class="field full"><label>正文</label><textarea v-model="form.body" class="textarea" placeholder="写清楚时间、范围、影响和咨询方式。"></textarea></div>
-          <div class="field"><label>有效期至</label><el-date-picker v-model="form.effectiveTo" type="datetime" class="date-picker" placeholder="选择日期和时间" value-format="YYYY-MM-DD HH:mm:ss" /></div>
+          <div class="field"><label>有效期至</label><el-date-picker v-model="form.effectiveTo" type="datetime" class="date-picker" placeholder="选择日期和时间" format="YYYY年MM月DD日 HH:mm" value-format="YYYY-MM-DD HH:mm:ss" :disabled-date="disabledDate" /></div>
         </div>
         <div class="preview-wrap">
           <div class="hint">发布预览</div>

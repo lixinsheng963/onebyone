@@ -54,7 +54,7 @@
   <view class="group card">
     <view class="group-title">显示</view>
     <view class="row press" bindtap="clearCache">
-      <view><text class="row-title">清理缓存</text><text>草稿、图片临时文件、登录状态</text></view>
+      <view><text class="row-title">清理缓存</text><text>只清理草稿和图片临时文件，不会退出登录</text></view>
       <text class="arrow">›</text>
     </view>
   </view>
@@ -70,7 +70,7 @@
       <text class="arrow">›</text>
     </view>
     <view class="row">
-      <view><text class="row-title">版本</text><text>v0.3.0-rc.5 · 单校版</text></view>
+      <view><text class="row-title">版本</text><text>v0.3.0-rc.7 · 单校版</text></view>
       <text class="version">CAMPUS</text>
     </view>
   </view>

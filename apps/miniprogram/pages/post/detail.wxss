@@ -359,3 +359,34 @@
 .send-btn.ready {
   background: #b64a3a;
 }
+
+/* inline comment composer, share arrow and map hint */
+.comment-composer.inline {
+  position: static;
+  left: auto;
+  right: auto;
+  bottom: auto;
+  z-index: 1;
+  margin: 18rpx 0 0;
+  padding: 20rpx;
+  border: 1rpx solid #e7e1d5;
+  border-radius: 18rpx;
+  box-shadow: 0 10rpx 24rpx rgba(35, 42, 37, 0.04);
+  animation: none;
+}
+.share-action {
+  padding: 0;
+  margin: 0;
+  border: 0;
+  background: transparent;
+  line-height: 1;
+}
+.share-action::after { border: 0; }
+.share-icon { width: 36rpx; height: 36rpx; }
+.share-count { margin-left: 3rpx; }
+.map-hint { color: #b64a3a; font-size: 20rpx; }
+
+@media (max-width: 360px) {
+  .comment-input-preview { font-size: 21rpx; }
+  .action-icon-wrap { width: 70rpx; }
+}

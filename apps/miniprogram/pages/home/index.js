@@ -150,10 +150,17 @@ Page({
 
   onMore(e) {
     const id = e.detail.id;
+    const post = (this.data.posts || []).find((item) => item.id === id)
+      || (this.data.allPosts || []).find((item) => item.id === id);
+    const actions = post && post.isMine
+      ? [{ label: '复制内容链接', key: 'copy' }]
+      : [{ label: '举报这条内容', key: 'report' }, { label: '复制内容链接', key: 'copy' }];
     wx.showActionSheet({
-      itemList: ['举报这条内容', '复制内容链接'],
+      itemList: actions.map((item) => item.label),
       success: (res) => {
-        if (res.tapIndex === 0) {
+        const action = actions[res.tapIndex];
+        if (!action) return;
+        if (action.key === 'report') {
           wx.navigateTo({ url: `/pages/report/index?type=post&id=${id}` });
         } else {
           wx.setClipboardData({ data: `campus://post/${id}` });

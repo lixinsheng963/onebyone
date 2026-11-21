@@ -78,14 +78,11 @@ Page({
   clearCache() {
     wx.showModal({
       title: '清理缓存',
-      content: '会清除本地草稿和登录状态，确认继续？',
+      content: '只清除草稿和临时缓存，保留登录状态、自定义话题和通知设置。',
       success: (res) => {
-        if (res.confirm) {
-          wx.clearStorageSync();
-          api.logout();
-          this.setData({ user: null });
-          wx.showToast({ title: '已清理', icon: 'success' });
-        }
+        if (!res.confirm) return;
+        ['campus_draft', 'campus_upload_cache'].forEach((key) => wx.removeStorageSync(key));
+        wx.showToast({ title: '已清理临时缓存', icon: 'success' });
       }
     });
   },

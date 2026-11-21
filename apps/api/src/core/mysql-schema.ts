@@ -106,6 +106,8 @@ export const MYSQL_SCHEMA_STATEMENTS: string[] = [
     text TEXT NOT NULL,
     topic_id BIGINT UNSIGNED NULL,
     location_id BIGINT UNSIGNED NULL,
+    latitude DECIMAL(10,6) NULL,
+    longitude DECIMAL(10,6) NULL,
     anonymity TINYINT(1) NOT NULL DEFAULT 0,
     anonymous_alias VARCHAR(64) NULL,
     status VARCHAR(24) NOT NULL DEFAULT 'pending',
@@ -114,6 +116,7 @@ export const MYSQL_SCHEMA_STATEMENTS: string[] = [
     comments_enabled TINYINT(1) NOT NULL DEFAULT 1,
     like_count INT NOT NULL DEFAULT 0,
     favorite_count INT NOT NULL DEFAULT 0,
+    share_count INT NOT NULL DEFAULT 0,
     comment_count INT NOT NULL DEFAULT 0,
     unique_viewers INT NOT NULL DEFAULT 0,
     unique_commenters INT NOT NULL DEFAULT 0,
@@ -434,6 +437,9 @@ export async function ensureMysqlSchema(pool: Pool): Promise<void> {
       ['users', 'muted_until', '`muted_until` DATETIME(3) NULL AFTER `status`'],
       ['users', 'status_reason', '`status_reason` VARCHAR(255) NULL AFTER `muted_until`'],
       ['users', 'deleted_at', '`deleted_at` DATETIME(3) NULL AFTER `status_reason`'],
+      ['posts', 'latitude', '`latitude` DECIMAL(10,6) NULL AFTER `location_id`'],
+      ['posts', 'longitude', '`longitude` DECIMAL(10,6) NULL AFTER `latitude`'],
+      ['posts', 'share_count', '`share_count` INT NOT NULL DEFAULT 0 AFTER `favorite_count`'],
       ['official_accounts', 'org_id', '`org_id` VARCHAR(64) NULL AFTER `org_name`'],
       ['official_accounts', 'authorization_file_name', '`authorization_file_name` VARCHAR(255) NULL AFTER `authorization_file_key`'],
       ['official_accounts', 'authorization_mime', '`authorization_mime` VARCHAR(100) NULL AFTER `authorization_file_name`'],
@@ -488,6 +494,10 @@ export async function ensureMysqlSchema(pool: Pool): Promise<void> {
     await connection.query(
       'INSERT IGNORE INTO schema_migrations (version) VALUES (?)',
       ['2026-11-18-official-org-backfill-v9']
+    );
+    await connection.query(
+      'INSERT IGNORE INTO schema_migrations (version) VALUES (?)',
+      ['2026-11-21-post-share-location-v10']
     );
 
     await connection.query('INSERT IGNORE INTO notice_slot (id, active_notice_id) VALUES (1, NULL)');

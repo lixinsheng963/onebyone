@@ -46,11 +46,24 @@ export class PostsController {
     const mediaIds = stringList(body?.mediaIds, 9, 96, '图片').map((item) => assertId(item, '图片'));
     const topic = optionalText(body?.topic, 30, '话题');
     const location = optionalText(body?.location, 50, '地点');
+    const latitude = body?.latitude === undefined || body?.latitude === null ? undefined : Number(body.latitude);
+    const longitude = body?.longitude === undefined || body?.longitude === null ? undefined : Number(body.longitude);
+    if ((latitude === undefined) !== (longitude === undefined)) {
+      throw new BadRequestException('地点坐标必须同时提供');
+    }
+    if (latitude !== undefined && (!Number.isFinite(latitude) || latitude < -90 || latitude > 90)) {
+      throw new BadRequestException('纬度格式不正确');
+    }
+    if (longitude !== undefined && (!Number.isFinite(longitude) || longitude < -180 || longitude > 180)) {
+      throw new BadRequestException('经度格式不正确');
+    }
     const input = {
       text,
       mediaIds,
       topic,
       location,
+      latitude,
+      longitude,
       anonymity: body?.anonymity === true,
       commentsEnabled: body?.commentsEnabled !== false
     };
@@ -103,6 +116,17 @@ export class PostsController {
       return ok(this.store.setFavorite(publicId, tokenFrom(req), false));
     } catch (error) {
       this.mapInteractionError(error);
+    }
+  }
+
+  @Post(':publicId/share')
+  share(@Param('publicId') publicId: string) {
+    assertId(publicId, '内容');
+    try {
+      return ok(this.store.recordShare(publicId));
+    } catch (error) {
+      if ((error as Error).message === 'NOT_FOUND') throw new NotFoundException('内容不存在');
+      throw error;
     }
   }
 

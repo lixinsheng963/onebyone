@@ -482,4 +482,17 @@ function canPlatformApprove(item: OfficialAccount) {
 .preview-box img { max-width: 100%; max-height: 62vh; object-fit: contain; }
 .preview-box iframe { width: 100%; height: 62vh; border: 0; background: #fff; }
 @media (max-width: 900px) { .official-grid { grid-template-columns: 1fr; } .form-grid { grid-template-columns: 1fr; } }
+.scope-checks {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: nowrap;
+  min-height: 32px;
+}
+.scope-checks :deep(.el-checkbox) {
+  margin-right: 0;
+  height: 32px;
+  line-height: 32px;
+}
+
 </style>

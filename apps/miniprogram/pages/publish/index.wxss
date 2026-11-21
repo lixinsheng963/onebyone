@@ -247,3 +247,11 @@
 .topic-add { display: flex; align-items: center; gap: 6rpx; padding: 8rpx 12rpx; border: 1rpx dashed #c9c2b5; border-radius: 999rpx; color: #8b857b; font-size: 22rpx; }
 .topic-add input { width: 150rpx; font-size: 22rpx; color: #3f3a32; }
 .topic-add text { font-size: 28rpx; color: #4b554f; padding: 0 4rpx; }
+
+/* topics: inline add, long-press delete */
+.topic { position: relative; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; }
+.topic-plus { width: 54rpx; padding: 0; font-size: 24rpx; line-height: 54rpx; color: #4b554f; }
+.topic-adding { padding: 0 8rpx 0 14rpx; border-style: dashed; }
+.topic-input { width: 116rpx; height: 46rpx; font-size: 22rpx; color: #3f3a32; }
+.topic-confirm { margin-left: 4rpx; font-size: 26rpx; color: #4b554f; }
+.topic-x { right: -6rpx; top: -12rpx; z-index: 2; }

@@ -146,3 +146,9 @@
 .btn-ghost::after, .btn-primary::after { border: 0; }
 .field { display: flex; flex-direction: column; gap: 10rpx; color: #6f6a60; font-size: 22rpx; }
 .field .input { width: 100%; box-sizing: border-box; padding: 18rpx 20rpx; border: 1rpx solid #e7dfd1; border-radius: 12rpx; background: #fffdf8; font-size: 26rpx; color: #2f3a33; }
+
+/* profile editor alignment */
+.profile-editor .field .input { height: 68rpx; min-height: 68rpx; padding: 0 16rpx; font-size: 26rpx; line-height: 68rpx; }
+.profile-editor-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 16rpx; }
+.profile-editor-actions .btn-ghost,
+.profile-editor-actions .btn-primary { width: 100%; height: 68rpx; padding: 0; line-height: 68rpx; text-align: center; font-size: 24rpx; box-sizing: border-box; }

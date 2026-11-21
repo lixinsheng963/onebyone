@@ -1,6 +1,6 @@
 {
   "name": "campus-daily",
-  "version": "0.3.0-rc.6",
+  "version": "0.3.0-rc.7",
   "private": true,
   "description": "校园日常分享小程序（单校版）",
   "packageManager": "pnpm@11.28.5",

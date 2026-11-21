@@ -123,7 +123,10 @@ function normalizePost(post) {
     createdAt: post.createdAt || post.time || post.publishedAt,
     likeCount: post.likeCount || 0,
     favoriteCount: post.favoriteCount || 0,
+    shareCount: post.shareCount || 0,
     commentCount: post.commentCount || 0,
+    latitude: post.latitude,
+    longitude: post.longitude,
     media: post.media || [],
     liked: Boolean(post.liked),
     favorited: Boolean(post.favorited),
@@ -149,9 +152,13 @@ function normalizeComment(comment) {
 function normalizeDetail(data) {
   const comments = (data.comments || []).map(normalizeComment);
   const roots = comments.filter((item) => !item.rootId && !item.parentId);
-  roots.forEach((root) => {
-    root.replies = comments.filter((item) => item.rootId === root.id || item.parentId === root.id);
-  });
+  // API returns root comments with nested replies; only regroup when the
+  // response is still a flat comment list (legacy/mock shape).
+  if (comments.some((item) => item.rootId || item.parentId)) {
+    roots.forEach((root) => {
+      root.replies = comments.filter((item) => item.rootId === root.id || item.parentId === root.id);
+    });
+  }
   return { post: normalizePost(data.post), comments: roots };
 }
 
@@ -183,6 +190,11 @@ function getNotice(id) {
 function toggleLike(id, liked) {
   if (!config.useRemote) return Promise.resolve(mock.toggleLike(id));
   return request(`/posts/${id}/like`, liked === false ? 'DELETE' : 'POST');
+}
+
+function recordShare(id) {
+  if (!config.useRemote) return Promise.resolve({ count: 0 });
+  return request(`/posts/${id}/share`, 'POST');
 }
 
 function toggleFavorite(id, favorited) {
@@ -242,6 +254,8 @@ function publish(data) {
     text: data.text,
     topic: data.topic,
     location: data.location,
+    latitude: data.latitude,
+    longitude: data.longitude,
     anonymity: data.anonymity,
     commentsEnabled: data.commentsEnabled,
     mediaIds: data.mediaIds || []
@@ -322,6 +336,7 @@ module.exports = {
   getNotice,
   toggleLike,
   toggleFavorite,
+  recordShare,
   addComment,
   uploadMedia,
   deletePost,

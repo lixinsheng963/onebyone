@@ -91,6 +91,22 @@ Page({
   onFocus() {
     if (!api.getUser()) return this.goAuth();
     this.setData({ focus: true });
+    setTimeout(() => {
+      wx.pageScrollTo({ selector: '#inline-composer', duration: 220 });
+    }, 80);
+  },
+
+  onOpenLocation() {
+    const post = this.data.post;
+    if (!post || !post.latitude || !post.longitude) {
+      return wx.showToast({ title: '这条内容没有地图位置', icon: 'none' });
+    }
+    wx.openLocation({
+      latitude: Number(post.latitude),
+      longitude: Number(post.longitude),
+      name: post.location || '校园地点',
+      scale: 17
+    });
   },
 
   onInput(e) {
@@ -199,6 +215,11 @@ Page({
   },
 
   onShareAppMessage() {
+    if (this.postId) {
+      api.recordShare(this.postId).then((res) => {
+        if (res && typeof res.count === 'number') this.setData({ 'post.shareCount': res.count });
+      }).catch(() => {});
+    }
     return {
       title: this.data.post ? this.data.post.text.slice(0, 30) : '校园日常',
       path: `/pages/post/detail?id=${this.postId}`

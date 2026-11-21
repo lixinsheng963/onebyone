@@ -13,6 +13,12 @@
     "pages/settings/index",
     "pages/guidelines/index"
   ],
+  "permission": {
+    "scope.userLocation": {
+      "desc": "用于选择校园地点并在内容中展示地图位置"
+    }
+  },
+  "requiredPrivateInfos": ["chooseLocation", "openLocation"],
   "window": {
     "navigationBarBackgroundColor": "#f7f5f0",
     "navigationBarTextStyle": "black",

@@ -87,6 +87,8 @@ export interface Post {
   media: Media[];
   topic?: string;
   location?: string;
+  latitude?: number;
+  longitude?: number;
   anonymity: boolean;
   anonymousAlias?: string;
   status: 'pending' | 'published' | 'rejected' | 'hidden';
@@ -95,6 +97,7 @@ export interface Post {
   commentsEnabled: boolean;
   likeCount: number;
   favoriteCount: number;
+  shareCount: number;
   commentCount: number;
   uniqueViewers: number;
   uniqueCommenters: number;
@@ -265,6 +268,8 @@ export interface FeedItem {
   media: Media[];
   topic?: string;
   location?: string;
+  latitude?: number;
+  longitude?: number;
   author: {
     nickname: string;
     avatar: string;
@@ -277,6 +282,7 @@ export interface FeedItem {
   likeCount: number;
   commentCount: number;
   favoriteCount: number;
+  shareCount: number;
   liked: boolean;
   favorited: boolean;
   commentsEnabled: boolean;

@@ -38,7 +38,7 @@
 
         <view class="meta-row">
           <text wx:if="{{post.topic}}" class="topic">#{{post.topic}}</text>
-          <text wx:if="{{post.location}}" class="meta-location">· {{post.location}}</text>
+          <text wx:if="{{post.location}}" class="meta-location" bindtap="onOpenLocation">· {{post.location}}<text wx:if="{{post.latitude && post.longitude}}" class="map-hint"> 地图 ›</text></text>
           <text class="meta-time">{{post.timeText}}</text>
         </view>
 
@@ -73,6 +73,31 @@
           bind:report="onReportComment"
         />
       </view>
+
+      <view wx:if="{{focus}}" id="inline-composer" class="comment-composer inline">
+        <view wx:if="{{replyTarget}}" class="reply-banner">
+          <text>回复 @{{replyTarget.nickname}}</text>
+          <text class="reply-cancel" bindtap="onCancelReply">取消</text>
+        </view>
+        <view class="composer-row">
+          <view class="anon-switch">
+            <switch checked="{{anonymity}}" color="#b64a3a" bindchange="onAnonChange" />
+            <text>匿名</text>
+          </view>
+          <textarea
+            class="composer-input"
+            value="{{commentText}}"
+            placeholder="说点什么..."
+            maxlength="200"
+            auto-height
+            focus="{{focus}}"
+            bindinput="onInput"
+            adjust-position
+            cursor-spacing="18"
+          />
+          <button class="send-btn {{commentText ? 'ready' : ''}}" bindtap="onSend" loading="{{sending}}">发送</button>
+        </view>
+      </view>
     </view>
 
     <view class="bottom-space"></view>
@@ -90,37 +115,14 @@
         <image src="{{post.favorited ? '/assets/icons/star-active.png' : '/assets/icons/star.png'}}" class="action-icon" />
         <text class="{{post.favorited ? 'active star' : ''}}">{{fmt.count(post.favoriteCount)}}</text>
       </view>
-      <button class="share-btn" open-type="share" aria-label="分享">
-        <text class="share-arrow">↗</text>
+      <button class="action-icon-wrap share-action" open-type="share" aria-label="分享">
+        <image src="/assets/icons/share.png" class="action-icon share-icon" />
+        <text class="share-count">{{fmt.count(post.shareCount)}}</text>
       </button>
       <view class="action-icon-wrap" bindtap="onMore">
         <image src="/assets/icons/more.png" class="action-icon" />
       </view>
     </view>
 
-    <view wx:if="{{focus}}" class="comment-composer">
-      <view wx:if="{{replyTarget}}" class="reply-banner">
-        <text>回复 @{{replyTarget.nickname}}</text>
-        <text class="reply-cancel" bindtap="onCancelReply">取消</text>
-      </view>
-      <view class="composer-row">
-        <view class="anon-switch">
-          <switch checked="{{anonymity}}" color="#b64a3a" bindchange="onAnonChange" />
-          <text>匿名</text>
-        </view>
-        <textarea
-          class="composer-input"
-          value="{{commentText}}"
-          placeholder="说点什么..."
-          maxlength="200"
-          auto-height
-          focus="{{focus}}"
-          bindinput="onInput"
-          adjust-position
-          cursor-spacing="18"
-        />
-        <button class="send-btn {{commentText ? 'ready' : ''}}" bindtap="onSend" loading="{{sending}}">发送</button>
-      </view>
-    </view>
   </block>
 </view>

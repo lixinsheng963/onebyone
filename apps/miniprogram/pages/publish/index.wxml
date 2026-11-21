@@ -56,31 +56,26 @@
     <view class="setting-label">话题</view>
     <view class="topic-list">
       <view
-        wx:for="{{topics}}"
+        wx:for="{{topicOptions}}"
         wx:key="*this"
         class="topic {{topic === item ? 'active' : ''}}"
         data-topic="{{item}}"
         bindtap="onTopic"
-      >{{item}}</view>
-    </view>
-    <view class="topic-list custom-topics">
-      <view wx:for="{{customTopics}}" wx:key="*this" class="topic custom {{topic === item ? 'active' : ''}}" data-topic="{{item}}" bindtap="onTopic">
-        {{item}}<text class="topic-x" catchtap="removeTopic" data-topic="{{item}}">×</text>
+        bindlongpress="onTopicLongPress"
+      >{{item}}<text wx:if="{{deleteTopic === item}}" class="topic-x" catchtap="removeTopic" data-topic="{{item}}">×</text></view>
+      <view wx:if="{{addingTopic}}" class="topic topic-adding">
+        <input class="topic-input" value="{{newTopic}}" maxlength="6" focus="{{addingTopic}}" placeholder="最多6字" bindinput="onTopicInput" bindconfirm="addTopic" />
+        <text class="topic-confirm" catchtap="addTopic">＋</text>
       </view>
-      <view class="topic-add">
-        <input value="{{newTopic}}" maxlength="6" placeholder="自定义话题" bindinput="onTopicInput" bindconfirm="addTopic" />
-        <text catchtap="addTopic">＋</text>
-      </view>
+      <view wx:else class="topic topic-plus" bindtap="startAddTopic">＋</view>
     </view>
 
     <view class="setting-line">
       <text class="setting-label inline">地点</text>
-      <picker mode="selector" range="{{locations}}" value="{{locationIndex}}" bindchange="onLocation">
-        <view class="picker-value">
-          <text class="{{location ? '' : 'placeholder'}}">{{location || '选择楼栋/区域'}}</text>
-          <text class="picker-arrow">›</text>
-        </view>
-      </picker>
+      <view class="picker-value" bindtap="chooseLocation">
+        <text class="{{location ? '' : 'placeholder'}}">{{location || '在地图中选择地点'}}</text>
+        <text class="picker-arrow">›</text>
+      </view>
     </view>
 
     <view class="switch-line">

@@ -42,6 +42,7 @@ const active = ref<ViewKey>('dashboard');
 const role = ref<AdminRole>('platform_admin');
 const viewError = ref('');
 const authed = ref(false);
+const booting = ref(true);
 const loginError = ref('');
 const login = ref({ email: '', password: '', totp: '' });
 const badgeCounts = ref({ moderation: 0, official: 0, reports: 0 });
@@ -53,15 +54,20 @@ const current = computed(() => (visibleNav.value.find((item) => item.key === act
 const canNotify = computed(() => role.value !== 'content_reviewer');
 
 onMounted(async () => {
-  authed.value = hasToken();
-  if (!authed.value) return;
+  if (!hasToken()) {
+    booting.value = false;
+    return;
+  }
   try {
     role.value = (await getAdminMe()).role;
     if (!roleNav[role.value].includes(active.value)) active.value = 'dashboard';
+    authed.value = true;
     startBadgePolling();
   } catch {
     authed.value = false;
     clearToken();
+  } finally {
+    booting.value = false;
   }
 });
 
@@ -145,7 +151,12 @@ function reloadPage() {
 </script>
 
 <template>
-  <div v-if="!authed" class="login-shell">
+  <div v-if="booting" class="boot-screen">
+    <div class="boot-mark">日</div>
+    <p>正在验证管理身份…</p>
+  </div>
+
+  <div v-else-if="!authed" class="login-shell">
     <div class="login-art">
       <div class="login-brand"><span>日</span> 校园日常</div>
       <div class="login-quote">
@@ -153,7 +164,7 @@ function reloadPage() {
         <h1>把今天的小事，<br />认真地接下来。</h1>
         <p>内容审核、官方通知、热度配置。所有判断留痕，所有操作可回看。</p>
       </div>
-      <div class="login-foot">2C4G · 单校版 · v0.3.0-rc.11</div>
+      <div class="login-foot">2C4G · 单校版 · v0.3.0-rc.12</div>
     </div>
     <div class="login-panel">
       <div class="login-form">
@@ -215,7 +226,7 @@ function reloadPage() {
             <p>小何 · 内容安全</p>
           </div>
         </div>
-        <div class="side-meta">v0.3.0-rc.11 · 单校运营台</div>
+        <div class="side-meta">v0.3.0-rc.12 · 单校运营台</div>
       </div>
     </aside>
 
@@ -247,6 +258,9 @@ function reloadPage() {
 </template>
 
 <style scoped>
+.boot-screen { min-height: 100vh; display: grid; place-content: center; gap: 14px; text-align: center; background: var(--bg); color: var(--muted); }
+.boot-mark { width: 56px; height: 56px; margin: 0 auto; border-radius: 50%; display: grid; place-items: center; background: var(--accent); color: #fff; font-family: var(--serif); font-size: 28px; }
+.boot-screen p { margin: 0; font-size: 12px; letter-spacing: .08em; }
 .view-error { max-width: 620px; margin: 10vh auto 0; padding: 32px; text-align: center; }
 .view-error-mark { width: 42px; height: 42px; margin: 0 auto 14px; border-radius: 50%; display: grid; place-items: center; background: #fbe7e5; color: #a52828; font-family: var(--serif); font-size: 24px; }
 .view-error h2 { margin: 0 0 8px; font-family: var(--serif); font-weight: 400; }

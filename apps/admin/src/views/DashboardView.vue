@@ -2,9 +2,12 @@
 import { computed, ref } from 'vue';
 import { getDashboard, getQueue } from '../api';
 import { useLivePoll } from '../composables/useLivePoll';
-import type { HotItem, ModerationCase } from '../types';
+import type { AdminRole, HotItem, ModerationCase } from '../types';
 
+const props = defineProps<{ adminRole?: AdminRole }>();
 const emit = defineEmits<{ go: [key: 'moderation' | 'reports' | 'notices' | 'ranking'] }>();
+const canModerate = computed(() => props.adminRole !== 'school_reviewer');
+const canConfigure = computed(() => props.adminRole === 'platform_admin');
 const stats = ref<any>({
   registered: 0,
   dau: 0,
@@ -25,10 +28,14 @@ const maxPost = computed(() => Math.max(...(stats.value.weekPosts || [1]), 1));
 
 async function load() {
   try {
-    const [dashboard, queue] = await Promise.all([getDashboard(), getQueue()]);
+    const dashboard = await getDashboard();
     stats.value = dashboard.stats;
     hotItems.value = dashboard.hot;
-    pending.value = queue.slice(0, 4);
+    if (canModerate.value) {
+      pending.value = (await getQueue()).slice(0, 4);
+    } else {
+      pending.value = [];
+    }
     error.value = '';
   } catch (e) {
     error.value = (e as Error).message;
@@ -117,7 +124,7 @@ useLivePoll(load, 2000);
     </section>
 
     <section class="grid-2">
-      <article class="card">
+      <article v-if="canModerate" class="card">
         <div class="card-head">
           <div>
             <h2>待审核队列</h2>
@@ -143,7 +150,7 @@ useLivePoll(load, 2000);
             <h2>热门 Top 4</h2>
             <p>最近 7 天，按热度分排序</p>
           </div>
-          <button class="btn btn-outline btn-sm" @click="emit('go', 'ranking')">看配置 →</button>
+          <button v-if="canConfigure" class="btn btn-outline btn-sm" @click="emit('go', 'ranking')">看配置 →</button>
         </div>
         <div class="card-body">
           <div v-for="(item, index) in hotItems" :key="item.id" class="hot-row">

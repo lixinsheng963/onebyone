@@ -2,7 +2,7 @@
   <view class="page-head">
     <view class="kicker">APPEAL / 帮助与申诉</view>
     <view class="title serif">选择内容，说明理由</view>
-    <view class="sub">只处理你自己的内容；请选择一条已发布或被拦截的内容，写清楚为什么需要复核。</view>
+    <view class="sub">只处理你自己的内容；只有审核未通过（被隐藏/未通过）的内容才能申诉，请写清楚理由。</view>
   </view>
 
   <view wx:if="{{loading}}" class="loading-card">正在读取你的内容…</view>
@@ -38,7 +38,7 @@
 
     <view wx:else class="empty-card">
       <text>暂无可申诉的内容</text>
-      <text class="empty-sub">你还没有已发布、被隐藏或未通过的内容。</text>
+      <text class="empty-sub">你还没有被隐藏或审核未通过的内容。</text>
     </view>
 
     <view class="field">

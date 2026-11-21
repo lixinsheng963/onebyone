@@ -21,13 +21,40 @@ Page({
     this.load();
   },
 
-  async load() {
+  onShow() {
+    if (this._loaded) this.load(true);
+    this._loaded = true;
+    this.startPolling();
+  },
+
+  onHide() {
+    this.stopPolling();
+  },
+
+  onUnload() {
+    this.stopPolling();
+  },
+
+  async load(silent = false) {
+    if (!silent) this.setData({ loading: true });
     try {
       const items = await api.getNotifications();
       const decorated = (items || []).map((item) => Object.assign({}, item, { timeText: timeAgo(item.time) }));
       this.setData({ all: decorated, items: this.filter(decorated, this.data.tab), loading: false });
     } catch (error) {
       this.setData({ loading: false });
+    }
+  },
+
+  startPolling() {
+    this.stopPolling();
+    this._pollTimer = setInterval(() => this.load(true), 5000);
+  },
+
+  stopPolling() {
+    if (this._pollTimer) {
+      clearInterval(this._pollTimer);
+      this._pollTimer = null;
     }
   },
 

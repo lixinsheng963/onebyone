@@ -7,12 +7,11 @@ import type { Appeal } from '../types';
 
 const items = ref<Appeal[]>([]);
 const error = ref('');
-const filter = ref<'all' | Appeal['status']>('pending');
 const detail = ref<Appeal | null>(null);
 const dialog = ref(false);
 
-const filtered = computed(() => items.value.filter((item) => filter.value === 'all' || item.status === filter.value));
-const pendingCount = computed(() => items.value.filter((item) => item.status === 'pending').length);
+const filtered = computed(() => items.value.filter((item) => item.status === 'pending'));
+const pendingCount = computed(() => filtered.value.length);
 
 const statusLabel: Record<Appeal['status'], string> = {
   pending: '待复核',
@@ -90,13 +89,7 @@ function dateText(value?: string) {
       </div>
       <div class="card-body">
         <div class="toolbar">
-          <select v-model="filter" class="input">
-            <option value="pending">待复核</option>
-            <option value="approved">已通过</option>
-            <option value="rejected">已驳回</option>
-            <option value="all">全部</option>
-          </select>
-          <span class="muted">共 {{ filtered.length }} 条</span>
+          <span class="muted">仅显示待复核申诉，共 {{ filtered.length }} 条；已处理记录请到“已审核申诉”查看。</span>
         </div>
         <table class="table">
           <thead>

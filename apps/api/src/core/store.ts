@@ -1395,7 +1395,7 @@ export class CampusStore {
       const post = this.posts.find((item) => item.id === targetId);
       if (!post) throw new Error('NOT_FOUND');
       if (post.authorId !== user.id) throw new Error('FORBIDDEN');
-      if (!['published', 'hidden', 'rejected'].includes(post.status)) throw new Error('NOT_APPEALABLE');
+      if (!['hidden', 'rejected'].includes(post.status)) throw new Error('NOT_APPEALABLE');
       targetId = post.id;
     } else if (input.targetType === 'comment') {
       const comment = this.comments.find((item) => item.id === targetId);

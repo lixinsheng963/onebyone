@@ -33,6 +33,15 @@ Page({
     if (this._loaded) this.load(true);
     this._loaded = true;
     this.refreshUnread();
+    this.startUnreadTimer();
+  },
+
+  onHide() {
+    this.stopUnreadTimer();
+  },
+
+  onUnload() {
+    this.stopUnreadTimer();
   },
 
   buildDate() {
@@ -83,8 +92,21 @@ Page({
       return;
     }
     api.getNotifications().then((items) => {
-      this.setData({ unread: (items || []).filter((item) => !item.read).length });
+      const unread = (items || []).filter((item) => !item.read).length;
+      if (unread !== this.data.unread) this.setData({ unread });
     }).catch(() => {});
+  },
+
+  startUnreadTimer() {
+    this.stopUnreadTimer();
+    this._unreadTimer = setInterval(() => this.refreshUnread(), 5000);
+  },
+
+  stopUnreadTimer() {
+    if (this._unreadTimer) {
+      clearInterval(this._unreadTimer);
+      this._unreadTimer = null;
+    }
   },
 
   onTab(e) {

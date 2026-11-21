@@ -1,9 +1,7 @@
 const api = require('../../utils/api');
 const { formatDateTime } = require('../../utils/format');
 
-const STATUS_TEXT = {
-  published: '已发布',
-  hidden: '已隐藏',
+const STATUS_TEXT = {  hidden: '已隐藏',
   rejected: '未通过',
   pending: '审核中'
 };
@@ -33,17 +31,17 @@ Page({
     try {
       const posts = await api.getMyPosts();
       const items = (posts || [])
-        .filter((post) => ['published', 'hidden', 'rejected'].includes(post.status || 'published'))
+        .filter((post) => ['hidden', 'rejected'].includes(post.status))
         .map((post) => ({
           id: post.publicId || post.id,
           text: post.text || '',
-          status: post.status || 'published',
-          statusText: STATUS_TEXT[post.status || 'published'] || '已发布',
+          status: post.status,
+          statusText: STATUS_TEXT[post.status] || '未通过',
           cover: post.media && post.media[0] ? (post.media[0].url || '') : '',
           time: formatDateTime(post.publishedAt || post.createdAt || post.time)
         }));
       let selected = items.find((item) => item.id === this.presetId);
-      if (!selected) selected = items.find((item) => item.status !== 'published') || items[0];
+      if (!selected) selected = items[0];
       this.setData({
         loading: false,
         items,

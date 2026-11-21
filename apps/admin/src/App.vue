@@ -4,6 +4,7 @@ import { adminLogin, adminLogout, clearToken, getAdminMe, getDashboard, getOffic
 import type { AdminRole } from './types';
 import AuditLogsView from './views/AuditLogsView.vue';
 import AppealsView from './views/AppealsView.vue';
+import AppealHistoryView from './views/AppealHistoryView.vue';
 import DashboardView from './views/DashboardView.vue';
 import InviteCodesView from './views/InviteCodesView.vue';
 import ModerationView from './views/ModerationView.vue';
@@ -14,13 +15,14 @@ import ReportsView from './views/ReportsView.vue';
 import TeamView from './views/TeamView.vue';
 import UsersView from './views/UsersView.vue';
 
-type ViewKey = 'dashboard' | 'moderation' | 'users' | 'appeals' | 'official' | 'notices' | 'reports' | 'ranking' | 'invites' | 'audit' | 'team';
+type ViewKey = 'dashboard' | 'moderation' | 'users' | 'appeals' | 'appealHistory' | 'official' | 'notices' | 'reports' | 'ranking' | 'invites' | 'audit' | 'team';
 
 const nav: Array<{ key: ViewKey; label: string; en: string; icon: string }> = [
   { key: 'dashboard', label: '概览', en: 'Overview', icon: '◒' },
   { key: 'moderation', label: '审核队列', en: 'Moderation', icon: '◷' },
   { key: 'users', label: '用户治理', en: 'Users', icon: '☷' },
   { key: 'appeals', label: '申诉复核', en: 'Appeals', icon: '↺' },
+  { key: 'appealHistory', label: '已审核申诉', en: 'Appeal History', icon: '✓' },
   { key: 'official', label: '官方账号', en: 'Official', icon: '◈' },
   { key: 'notices', label: '通知', en: 'Notices', icon: '▤' },
   { key: 'reports', label: '举报', en: 'Reports', icon: '⚑' },
@@ -32,7 +34,7 @@ const nav: Array<{ key: ViewKey; label: string; en: string; icon: string }> = [
 
 const roleNav: Record<AdminRole, ViewKey[]> = {
   platform_admin: nav.map((item) => item.key),
-  content_reviewer: ['dashboard', 'moderation', 'users', 'appeals', 'reports'],
+  content_reviewer: ['dashboard', 'moderation', 'users', 'appeals', 'appealHistory', 'reports'],
   school_reviewer: ['dashboard', 'official', 'notices']
 };
 
@@ -44,7 +46,7 @@ const loginError = ref('');
 const login = ref({ email: '', password: '', totp: '' });
 const badgeCounts = ref({ moderation: 0, official: 0, reports: 0 });
 let badgeTimer: number | undefined;
-const views = { dashboard: DashboardView, moderation: ModerationView, users: UsersView, appeals: AppealsView, official: OfficialView, notices: NoticesView, reports: ReportsView, ranking: RankingView, invites: InviteCodesView, audit: AuditLogsView, team: TeamView };
+const views = { dashboard: DashboardView, moderation: ModerationView, users: UsersView, appeals: AppealsView, appealHistory: AppealHistoryView, official: OfficialView, notices: NoticesView, reports: ReportsView, ranking: RankingView, invites: InviteCodesView, audit: AuditLogsView, team: TeamView };
 const visibleNav = computed(() => nav.filter((item) => roleNav[role.value].includes(item.key)));
 const currentView = computed(() => views[active.value]);
 const current = computed(() => (visibleNav.value.find((item) => item.key === active.value) || visibleNav.value[0])!);
@@ -151,7 +153,7 @@ function reloadPage() {
         <h1>把今天的小事，<br />认真地接下来。</h1>
         <p>内容审核、官方通知、热度配置。所有判断留痕，所有操作可回看。</p>
       </div>
-      <div class="login-foot">2C4G · 单校版 · v0.2.0</div>
+      <div class="login-foot">2C4G · 单校版 · v0.3.0-rc.11</div>
     </div>
     <div class="login-panel">
       <div class="login-form">
@@ -213,7 +215,7 @@ function reloadPage() {
             <p>小何 · 内容安全</p>
           </div>
         </div>
-        <div class="side-meta">v0.2.0 · 单校运营台</div>
+        <div class="side-meta">v0.3.0-rc.11 · 单校运营台</div>
       </div>
     </aside>
 

@@ -480,7 +480,19 @@ function canPlatformApprove(item: OfficialAccount) {
 .official-name p { margin: 2px 0 0; color: var(--muted); font-size: 10px; }
 .operator-line { display: flex; align-items: center; gap: 5px; }
 .operator-avatar { width: 18px; height: 18px; border-radius: 50%; object-fit: cover; flex: 0 0 18px; }
-.operator-avatar.fallback { display: grid; place-items: center; background: var(--accent-soft); color: var(--accent-deep); font-size: 9px; }
+.operator-avatar.fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  line-height: 1;
+  text-align: center;
+  vertical-align: middle;
+  background: var(--accent-soft);
+  color: var(--accent-deep);
+  font-size: 9px;
+  font-weight: 600;
+}
 .operator-option { display: flex; align-items: center; gap: 8px; }
 .operator-option small { margin-left: auto; color: var(--muted); font-size: 10px; }
 .official-name .org-id { opacity: .75; }

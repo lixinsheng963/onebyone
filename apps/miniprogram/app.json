@@ -18,7 +18,7 @@
       "desc": "用于选择校园地点并在内容中展示地图位置"
     }
   },
-  "requiredPrivateInfos": ["chooseLocation", "openLocation"],
+  "requiredPrivateInfos": ["chooseLocation"],
   "window": {
     "navigationBarBackgroundColor": "#f7f5f0",
     "navigationBarTextStyle": "black",

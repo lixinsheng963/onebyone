@@ -4,8 +4,9 @@
 
 ## 版本状态
 
-- 当前版本：`v0.3.0-rc.7`（2026-11-21）
+- 当前版本：`v0.3.0-rc.8`（2026-11-21）
 - 已跑通：小程序核心内容闭环、管理端 11 个栏目、MySQL 规范化持久化、Redis 限流、AI 文本/图片举报复核、邀请码、审计日志、RBAC/学校审核人、官方账号授权链与运营者绑定、用户治理、真实注销、申诉、单人终审（全风险等级）、图片安全适配器、生产配置校验与压测。
+- v0.3.0-rc.8 修复：移除 `app.json` 中非法的 `requiredPrivateInfos: openLocation`，解决微信开发者工具“模拟器启动失败”；新增 `pnpm check:mini`，上线前静态校验隐私字段、页面/图标/组件、事件处理函数和资源引用。
 - v0.3.0-rc.7 补齐：首页/热门/精选作者禁止自举报；微信式分享箭头、分享计数与 `POST /posts/:id/share`；详情评论内联输入框、评论三点菜单；话题长按删除与紧凑加号；地点地图选点/查看（经纬度持久化）；设置页头像昵称、按钮排版与安全清缓存；官方账号授权范围横排；通知日期中文化并禁用过去。
 - 验证：API/admin build、WXML 16 文件、全部小程序 JS 语法、三套 e2e、安全 smoke 17 项、管理端 Playwright、21 个关键接口各 1000 请求/并发 100（0 错误）均通过。
 - **当前是 Release Candidate，尚未完成正式线上部署。** 完整的上线阻断项、外部依赖、测试矩阵和完成定义见 [docs/PRODUCTION-READINESS.md](docs/PRODUCTION-READINESS.md)。
@@ -52,6 +53,15 @@ pnpm --filter @campus/admin build
 ```
 
 小程序用微信开发者工具打开 `apps/miniprogram`，AppID 可选“测试号”。默认使用本地 API（需先启动 `pnpm dev:api`，并在开发者工具关闭合法域名校验）；如果只想看 UI、不启动 API，把 `apps/miniprogram/utils/config.js` 的 `useRemote` 改回 `false`，就会使用本地 mock。
+
+提交前运行小程序静态检查：
+
+```bash
+pnpm check:mini
+node tools/check-wxml.mjs
+```
+
+`check:mini` 会校验 `app.json` 的 `requiredPrivateInfos` 合法字段、页面/图标/组件文件是否齐全、WXML 事件处理函数是否存在、JS/JSON 语法和内嵌资源引用；这类检查能在导入开发者工具前拦住“模拟器启动失败”。
 
 ## 阿里云单机一键部署
 

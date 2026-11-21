@@ -1,5 +1,18 @@
 # 更新记录 / Changelog
 
+## v0.3.0-rc.8 — 2026-11-21
+
+### 修复
+- 修复 `apps/miniprogram/app.json` 的 `requiredPrivateInfos` 包含非法字段 `openLocation`，导致微信开发者工具报“模拟器启动失败”的问题；现在只声明 `chooseLocation`，`wx.openLocation` 查看地图无需该声明。
+- 新增 `tools/check-miniprogram.mjs` 与根脚本 `pnpm check:mini`：校验 `requiredPrivateInfos` 合法值、页面/图标/组件是否齐全、WXML 事件处理函数是否存在、内嵌资源引用、JS/JSON 语法。
+
+### 验证
+- `pnpm check:mini` 通过：12 页面、16 WXML、21 JS、0 issues。
+- `node tools/check-wxml.mjs` 16 文件通过。
+- `pnpm --filter @campus/api build`、`pnpm --filter @campus/admin build` 通过。
+- `security-smoke.mjs` 17 项通过。
+- 管理端 Playwright 120 轮快速切换 11 个栏目：0 空白页、0 console/pageerror。
+
 ## v0.3.0-rc.7 — 2026-11-21
 
 ### 新增/完善

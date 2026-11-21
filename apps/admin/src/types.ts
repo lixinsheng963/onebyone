@@ -55,6 +55,8 @@ export interface Appeal {
 export interface CasePost {
   id: string;
   author: string;
+  displayAuthor?: string;
+  avatar?: string;
   alias?: string;
   text: string;
   cover: string;
@@ -103,6 +105,7 @@ export interface OfficialAccount {
   owner: string;
   operatorUserId?: string;
   operatorNickname?: string;
+  operatorAvatar?: string;
   scope: string[];
   status: 'active' | 'pending_school' | 'pending_platform' | 'suspended' | 'expired';
   authorization: string;
@@ -146,6 +149,7 @@ export interface Report {
   reason: string;
   detail?: string;
   reporter: string;
+  reporterAvatar?: string;
   status: 'pending' | 'resolved' | 'rejected';
   ai?: ReportAi;
   handledAt?: string;

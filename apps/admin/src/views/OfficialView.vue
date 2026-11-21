@@ -327,7 +327,11 @@ function canPlatformApprove(item: OfficialAccount) {
               <div class="official-mark">校</div>
               <div class="official-name">
                 <b>{{ item.orgName }}</b>
-                <p>{{ operatorText(item) }}</p>
+                <p class="operator-line">
+                  <img v-if="item.operatorAvatar" class="operator-avatar" :src="item.operatorAvatar" alt="" />
+                  <span v-else class="operator-avatar fallback">{{ (item.operatorNickname || '运').slice(0, 1) }}</span>
+                  <span>{{ operatorText(item) }}</span>
+                </p>
                 <p v-if="item.orgId" class="org-id">组织标识：{{ item.orgId }}</p>
               </div>
               <span class="badge" :class="statusClass(item.status)">{{ statusLabel(item.status) }}</span>
@@ -412,7 +416,14 @@ function canPlatformApprove(item: OfficialAccount) {
               :key="user.id"
               :label="`${user.nickname}（${user.id}）`"
               :value="user.id"
-            />
+            >
+              <div class="operator-option">
+                <img v-if="user.avatar" class="operator-avatar" :src="user.avatar" alt="" />
+                <span v-else class="operator-avatar fallback">{{ user.nickname.slice(0, 1) }}</span>
+                <span>{{ user.nickname }}</span>
+                <small>{{ user.id }}</small>
+              </div>
+            </el-option>
           </el-select>
         </label>
         <p v-if="operatorTarget" class="muted">当前：{{ operatorText(operatorTarget) }}</p>
@@ -467,6 +478,11 @@ function canPlatformApprove(item: OfficialAccount) {
 .official-top > .badge-p0 { color: #b42318; background: #fef3f2; border-color: #fecdca; }
 .official-name b { display: block; font-size: 13px; }
 .official-name p { margin: 2px 0 0; color: var(--muted); font-size: 10px; }
+.operator-line { display: flex; align-items: center; gap: 5px; }
+.operator-avatar { width: 18px; height: 18px; border-radius: 50%; object-fit: cover; flex: 0 0 18px; }
+.operator-avatar.fallback { display: grid; place-items: center; background: var(--accent-soft); color: var(--accent-deep); font-size: 9px; }
+.operator-option { display: flex; align-items: center; gap: 8px; }
+.operator-option small { margin-left: auto; color: var(--muted); font-size: 10px; }
 .official-name .org-id { opacity: .75; }
 .scope-row { display: flex; gap: 5px; flex-wrap: wrap; margin: 13px 0 8px; }
 .auth-line { margin: 0 0 12px; color: var(--muted); font-size: 10px; line-height: 1.6; }

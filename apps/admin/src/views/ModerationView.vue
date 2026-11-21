@@ -107,7 +107,11 @@ async function decide(decision: 'approved' | 'rejected') {
             <div class="case-cover" :style="{ background: item.post.cover }"></div>
             <div class="case-info">
               <b>{{ item.post.text }}</b>
-              <p>{{ item.post.author }} · {{ item.post.createdAt }}</p>
+              <p class="case-author">
+                <img v-if="item.post.avatar && !item.post.alias" class="mini-avatar" :src="item.post.avatar" alt="" />
+                <span v-else class="mini-avatar fallback">{{ (item.post.displayAuthor || item.post.author || '同').slice(0, 1) }}</span>
+                {{ item.post.displayAuthor || item.post.author }} · {{ item.post.createdAt }}
+              </p>
               <div class="case-meta">
                 <span class="badge" :class="`badge-${item.risk.toLowerCase()}`">{{ item.risk }}</span>
                 <span class="badge badge-gray">{{ item.status === 'pending' ? '待审' : item.status === 'approved' ? '已通过' : '已拒绝' }}</span>
@@ -138,9 +142,10 @@ async function decide(decision: 'approved' | 'rejected') {
         </div>
 
         <div class="author-line">
-          <div class="author-avatar">{{ selected.post.author.slice(0, 1) }}</div>
+          <img v-if="selected.post.avatar && !selected.post.alias" class="author-avatar" :src="selected.post.avatar" alt="" />
+          <div v-else class="author-avatar">{{ (selected.post.displayAuthor || selected.post.author || '同').slice(0, 1) }}</div>
           <div>
-            <b>{{ selected.post.author }}</b>
+            <b>{{ selected.post.displayAuthor || selected.post.author }}</b>
             <p>{{ selected.post.location || '未标注地点' }} · {{ selected.post.createdAt }}</p>
           </div>
           <span v-if="selected.post.alias" class="badge badge-gray">{{ selected.post.alias }}</span>
@@ -212,7 +217,10 @@ async function decide(decision: 'approved' | 'rejected') {
 .detail-cover:after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 30%, rgba(0,0,0,.26)); }
 .cover-caption { position: absolute; left: 15px; bottom: 13px; z-index: 1; color: white; font-size: 10px; letter-spacing: .08em; padding: 4px 8px; border: 1px solid rgba(255,255,255,.4); border-radius: 999px; }
 .author-line { display: flex; gap: 10px; align-items: center; margin-top: 15px; }
-.author-avatar { width: 34px; height: 34px; border-radius: 50%; background: var(--accent-soft); color: var(--accent-deep); display: grid; place-items: center; font-family: var(--serif); }
+.author-avatar { width: 34px; height: 34px; border-radius: 50%; object-fit: cover; background: var(--accent-soft); color: var(--accent-deep); display: grid; place-items: center; font-family: var(--serif); }
+.case-author { display: flex; align-items: center; gap: 6px; }
+.mini-avatar { width: 18px; height: 18px; border-radius: 50%; object-fit: cover; flex: 0 0 18px; }
+.mini-avatar.fallback { display: grid; place-items: center; background: var(--accent-soft); color: var(--accent-deep); font-size: 10px; }
 .author-line b { font-size: 12px; }
 .author-line p { margin: 2px 0 0; color: var(--muted); font-size: 10px; }
 .author-line .badge { margin-left: auto; }

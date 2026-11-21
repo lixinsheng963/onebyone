@@ -63,7 +63,7 @@ export interface StoreSnapshot {
 }
 
 export interface AdminCaseView extends ModerationCase {
-  post?: Post;
+  post?: Post & { avatar?: string; displayAuthor?: string };
   author?: User;
 }
 
@@ -1041,12 +1041,17 @@ export class CampusStore {
           ? this.posts.find((item) => item.id === comment.postId)
           : this.posts.find((item) => item.id === c.targetId);
         const authorId = comment ? comment.authorId : post?.authorId;
+        const author = this.users.find((u) => u.id === authorId);
+        const anonymous = comment ? comment.anonymity : post?.anonymity;
+        const displayAuthor = anonymous
+          ? (comment?.anonymousAlias || post?.anonymousAlias || '匿名同学')
+          : (author?.nickname || '同学');
         return {
           ...c,
           post: post
-            ? { ...post, text: comment ? comment.text : post.text }
+            ? { ...post, text: comment ? comment.text : post.text, avatar: anonymous ? '' : author?.avatar, displayAuthor }
             : undefined,
-          author: this.users.find((u) => u.id === authorId)
+          author
         };
       });
   }
@@ -1169,6 +1174,7 @@ export class CampusStore {
     const bound = Boolean(operator && !/^u_official(_|$)/.test(operator.id));
     item.operatorUserId = bound ? operator!.publicId : undefined;
     item.operatorNickname = bound ? operator!.nickname : undefined;
+    item.operatorAvatar = bound ? operator!.avatar : undefined;
   }
 
   private decorateOfficialOperators(): void {
@@ -1389,7 +1395,7 @@ export class CampusStore {
       const post = this.posts.find((item) => item.id === targetId);
       if (!post) throw new Error('NOT_FOUND');
       if (post.authorId !== user.id) throw new Error('FORBIDDEN');
-      if (post.status !== 'hidden' && post.status !== 'rejected') throw new Error('NOT_APPEALABLE');
+      if (!['published', 'hidden', 'rejected'].includes(post.status)) throw new Error('NOT_APPEALABLE');
       targetId = post.id;
     } else if (input.targetType === 'comment') {
       const comment = this.comments.find((item) => item.id === targetId);
@@ -1451,12 +1457,12 @@ export class CampusStore {
   resolveAppeal(
     appealId: string,
     status: 'approved' | 'rejected',
-    options: { reason?: string; handledBy?: string; reviewerId?: string } = {}
+    options: { reason?: string; handledBy?: string; reviewerId?: string; reviewerRole?: string } = {}
   ): Appeal | undefined {
     const appeal = this.appeals.find((item) => item.id === appealId);
     if (!appeal) return undefined;
     if (appeal.status !== 'pending') throw new Error('APPEAL_CLOSED');
-    if (options.reviewerId) {
+    if (options.reviewerId && options.reviewerRole !== 'platform_admin') {
       const reviewerId = String(options.reviewerId);
       const handledReport = this.reports.some((report) =>
         report.targetType === appeal.targetType
@@ -1479,9 +1485,12 @@ export class CampusStore {
       if (appeal.targetType === 'post') {
         const post = this.posts.find((item) => item.id === appeal.targetId);
         if (post) {
+          const wasPublished = post.status === 'published';
           post.status = 'published';
-          post.publishedAt = nowIso();
-          post.heatScore = this.computePostHeat(post);
+          if (!wasPublished) {
+            post.publishedAt = nowIso();
+            post.heatScore = this.computePostHeat(post);
+          }
         }
       } else if (appeal.targetType === 'comment') {
         const comment = this.comments.find((item) => item.id === appeal.targetId);
@@ -1517,9 +1526,11 @@ export class CampusStore {
   }
 
   private toAdminReport(report: Report): AdminReport {
+    const reporter = this.users.find((user) => user.id === report.reporterId);
     return {
       ...report,
-      reporterName: this.users.find((user) => user.id === report.reporterId)?.nickname || '用户',
+      reporterName: reporter?.nickname || '用户',
+      reporterAvatar: reporter?.avatar,
       target: this.reportTargetView(report)
     };
   }
@@ -1537,6 +1548,7 @@ export class CampusStore {
         text: post.text,
         authorName: post.anonymity ? (post.anonymousAlias || '匿名同学') : (author?.nickname || '同学'),
         authorId: post.anonymity ? undefined : post.authorId,
+        avatar: post.anonymity ? undefined : author?.avatar,
         media: post.media.map((media) => media.url),
         createdAt: post.createdAt
       };
@@ -1554,6 +1566,7 @@ export class CampusStore {
         text: comment.text,
         authorName: comment.anonymity ? (comment.anonymousAlias || '匿名同学') : (author?.nickname || '同学'),
         authorId: comment.anonymity ? undefined : comment.authorId,
+        avatar: comment.anonymity ? undefined : author?.avatar,
         postId: comment.postId,
         postText: post?.text,
         createdAt: comment.createdAt

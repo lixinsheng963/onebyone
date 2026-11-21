@@ -84,7 +84,7 @@ function dateText(value?: string) {
       <div class="card-head">
         <div>
           <h2>申诉复核</h2>
-          <p>用户对隐藏内容或账号处理提出申诉；由未参与原处理的审核员复核。</p>
+          <p>用户对隐藏内容或账号处理提出申诉；原则上由未参与原处理的审核员复核，平台管理员可做最终兜底。</p>
         </div>
         <span class="badge badge-amber">{{ pendingCount }} 条待复核</span>
       </div>

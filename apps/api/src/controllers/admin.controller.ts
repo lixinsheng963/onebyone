@@ -450,7 +450,8 @@ export class AdminController {
       result = this.store.resolveAppeal(appealId, status, {
         reason,
         handledBy: identity.displayName || identity.email,
-        reviewerId: String(identity.id)
+        reviewerId: String(identity.id),
+        reviewerRole: identity.role
       });
     } catch (error) {
       if ((error as Error).message === 'APPEAL_CLOSED') throw new BadRequestException('该申诉已处理');

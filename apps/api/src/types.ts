@@ -178,6 +178,7 @@ export interface Report {
 
 export interface AdminReport extends Report {
   reporterName: string;
+  reporterAvatar?: string;
   target: ReportTargetView;
 }
 
@@ -228,6 +229,7 @@ export interface OfficialAccount {
   userId: string;
   operatorUserId?: string;
   operatorNickname?: string;
+  operatorAvatar?: string;
   orgName: string;
   orgId?: string;
   schoolId: string;

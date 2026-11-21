@@ -76,6 +76,10 @@ function targetName(item: Report) {
   return target.authorName || target.nickname || '未知用户';
 }
 
+function userInitial(name?: string) {
+  return (name || '用').slice(0, 1);
+}
+
 function aiLabel(ai?: Report['ai']) {
   if (!ai) return '未研判';
   return { reject: 'AI 建议驳回', uphold: 'AI 建议处理', needs_human: 'AI 转人工' }[ai.decision];
@@ -107,13 +111,25 @@ function aiClass(ai?: Report['ai']) {
             <tr v-for="item in visible" :key="item.id" class="report-row" @click="openDetail(item)">
               <td class="target">{{ targetText(item) }}</td>
               <td><span class="badge badge-gray">{{ item.targetType }}</span></td>
-              <td>{{ targetName(item) }}<div class="muted">{{ item.target.authorId || '' }}</div></td>
+              <td>
+                <div class="identity">
+                  <img v-if="item.target.avatar" class="identity-avatar" :src="item.target.avatar" alt="" />
+                  <span v-else class="identity-avatar fallback">{{ userInitial(targetName(item)) }}</span>
+                  <div><b>{{ targetName(item) }}</b><div class="muted">{{ item.target.authorId || '' }}</div></div>
+                </div>
+              </td>
               <td>{{ item.reason }}</td>
               <td>
                 <span class="badge" :class="aiClass(item.ai)">{{ aiLabel(item.ai) }}</span>
                 <div v-if="item.ai" class="ai-confidence">{{ Math.round(item.ai.confidence * 100) }}%</div>
               </td>
-              <td class="muted">{{ item.reporter }}</td>
+              <td>
+                <div class="identity">
+                  <img v-if="item.reporterAvatar" class="identity-avatar small" :src="item.reporterAvatar" alt="" />
+                  <span v-else class="identity-avatar small fallback">{{ userInitial(item.reporter) }}</span>
+                  <span class="muted">{{ item.reporter }}</span>
+                </div>
+              </td>
               <td class="muted">{{ item.createdAt }}</td>
               <td><span class="badge" :class="statusClass(item.status)">{{ statusLabel(item.status) }}</span></td>
               <td>
@@ -141,14 +157,22 @@ function aiClass(ai?: Report['ai']) {
         <div class="detail-heading">
           <span class="badge" :class="statusClass(detail.status)">{{ statusLabel(detail.status) }}</span>
           <span class="badge" :class="aiClass(detail.ai)">{{ aiLabel(detail.ai) }}</span>
-          <span class="muted">{{ detail.reporter }} · {{ detail.createdAt }}</span>
+          <span class="identity reporter-inline">
+            <img v-if="detail.reporterAvatar" class="identity-avatar small" :src="detail.reporterAvatar" alt="" />
+            <span v-else class="identity-avatar small fallback">{{ userInitial(detail.reporter) }}</span>
+            <span class="muted">{{ detail.reporter }} · {{ detail.createdAt }}</span>
+          </span>
         </div>
 
         <h3>被举报内容</h3>
         <div class="target-card">
           <div class="target-meta">
+            <span class="identity" v-if="detail.target?.authorName || detail.target?.nickname">
+              <img v-if="detail.target?.avatar" class="identity-avatar small" :src="detail.target.avatar" alt="" />
+              <span v-else class="identity-avatar small fallback">{{ userInitial(detail.target?.authorName || detail.target?.nickname) }}</span>
+              <span>{{ detail.target.authorName || detail.target.nickname }}</span>
+            </span>
             <span>{{ detail.target?.type === 'post' ? '帖子' : detail.target?.type === 'comment' ? '评论' : '用户' }}</span>
-            <span v-if="detail.target?.authorName">作者：{{ detail.target.authorName }}</span>
             <span v-if="detail.target?.status">状态：{{ detail.target.status }}</span>
           </div>
           <p class="target-body">{{ targetText(detail) }}</p>
@@ -184,6 +208,12 @@ function aiClass(ai?: Report['ai']) {
 .target { max-width: 280px; font-weight: 500; cursor: pointer; }
 .report-row { cursor: pointer; }
 .report-row:hover { background: #fbf7ef; }
+.identity { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.identity b { font-size: 12px; }
+.identity-avatar { width: 26px; height: 26px; border-radius: 50%; object-fit: cover; flex: 0 0 26px; }
+.identity-avatar.small { width: 20px; height: 20px; flex-basis: 20px; }
+.identity-avatar.fallback { display: grid; place-items: center; background: var(--accent-soft); color: var(--accent-deep); font-size: 10px; }
+.reporter-inline { gap: 5px; }
 .row-actions { display: flex; gap: 5px; }
 .ai-confidence { color: var(--muted); font-size: 10px; margin-top: 2px; }
 .report-detail h3 { margin: 20px 0 8px; font-size: 13px; }

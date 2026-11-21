@@ -138,7 +138,11 @@ function mapCase(item: any): ModerationCase {
     status: item.status === 'pending' ? 'pending' : item.status,
     post: {
       id: post.id || item.targetId,
-      author: post.anonymity ? post.anonymousAlias || '匿名同学' : item.author?.nickname || '同学',
+      author: post.anonymity
+        ? post.anonymousAlias || '匿名同学'
+        : post.displayAuthor || item.author?.nickname || '同学',
+      displayAuthor: post.anonymity ? post.anonymousAlias || '匿名同学' : post.displayAuthor,
+      avatar: post.anonymity ? '' : post.avatar,
       alias: post.anonymousAlias,
       text: post.text || '（评论内容）',
       cover: background(post.media?.[0]?.url),
@@ -170,10 +174,12 @@ function mapOfficial(item: any): OfficialAccount {
     owner: item.userId || '未绑定',
     operatorUserId: item.operatorUserId,
     operatorNickname: item.operatorNickname,
+    operatorAvatar: item.operatorAvatar,
     scope: Array.isArray(item.scope) ? item.scope : [],
     status: item.status,
     authorization: item.authorizationFile ? (item.authorizationFileName || '授权文件已上传') : '授权文件待上传',
     authorizationFileName: item.authorizationFileName,
+    authorizationMime: item.authorizationMime,
     authorizationSize: item.authorizationSize,
     expiresAt: item.expiresAt,
     effectiveAt: item.effectiveAt,
@@ -257,6 +263,7 @@ function mapReport(item: any): Report {
     reason: item.reason || item.reasonCode || '其他',
     detail: item.detail,
     reporter: item.reporterName || item.reporterId || '匿名',
+    reporterAvatar: item.reporterAvatar,
     status: item.status,
     ai: item.ai,
     handledAt: item.handledAt ? clock(item.handledAt) : undefined,

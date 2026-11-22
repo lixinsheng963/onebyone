@@ -193,10 +193,10 @@ pnpm --filter @campus/admin build
 
 log "创建运行用户与目录"
 id campus >/dev/null 2>&1 || useradd --system --home "$APP_DIR" --shell /sbin/nologin campus
-mkdir -p "$API_DIR/uploads" "$API_DIR/data" /var/www/campus/admin
+mkdir -p "$API_DIR/uploads" "$API_DIR/data" "$API_DIR/storage" /var/www/campus/admin
 rm -rf /var/www/campus/admin/*
 cp -r "$APP_DIR/apps/admin/dist"/* /var/www/campus/admin/
-chown -R campus:campus "$APP_DIR" "$API_DIR/uploads" "$API_DIR/data"
+chown -R campus:campus "$APP_DIR" "$API_DIR/uploads" "$API_DIR/data" "$API_DIR/storage"
 chmod 755 /var/www/campus/admin
 
 TOTP_SECRET="$(cd "$API_DIR" && node -e "console.log(require('otplib').generateSecret())")"

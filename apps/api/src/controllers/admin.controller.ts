@@ -220,6 +220,10 @@ export class AdminController {
       if (message === 'UNSUPPORTED_AUTH_TYPE') throw new BadRequestException('授权文件只支持 PDF/JPG/PNG');
       if (message === 'AUTH_TOO_LARGE') throw new BadRequestException('授权文件不能超过 8MB');
       if (message === 'INVALID_AUTH_FILE') throw new BadRequestException('授权文件内容与类型不符');
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code === 'EACCES' || code === 'EPERM' || code === 'ENOSPC') {
+        throw new ServiceUnavailableException('授权文件存储目录不可写，请联系管理员检查 storage 目录权限');
+      }
       throw error;
     }
   }
@@ -330,6 +334,31 @@ export class AdminController {
     if (Number.isNaN(new Date(effectiveTo).getTime())) throw new BadRequestException('有效期格式不正确');
     const result = this.store.createNotice({ title, body: noticeBody, type, source, effectiveTo: new Date(effectiveTo).toISOString() });
     await this.audit(req, 'notice.create', 'notice', result.id, null, result);
+    return ok(result);
+  }
+
+  @Put('notices/:noticeId')
+  async updateNotice(@Req() req: FastifyRequest, @Param('noticeId') noticeId: string, @Body() body: any) {
+    const identity = this.requireAdmin(req, ['platform_admin', 'school_reviewer']);
+    assertId(noticeId, '通知');
+    const target = this.store.getAdminNotices().find((item) => item.id === noticeId);
+    if (!target) throw new BadRequestException('通知不存在');
+    const before = this.snapshot(target);
+    const title = requireText(body?.title, 80, '通知标题');
+    const noticeBody = requireText(body?.body, 1000, '通知正文');
+    const type = assertEnum(body?.type, ['normal', 'emergency'] as const, '通知类型');
+    const source = requireText(body?.source, 30, '通知来源');
+    const effectiveTo = requireText(body?.effectiveTo, 40, '有效期');
+    if (Number.isNaN(new Date(effectiveTo).getTime())) throw new BadRequestException('有效期格式不正确');
+    const result = this.store.updateNotice(noticeId, {
+      title,
+      body: noticeBody,
+      type,
+      source,
+      effectiveTo: new Date(effectiveTo).toISOString()
+    });
+    if (!result) throw new BadRequestException('通知不存在');
+    await this.audit(req, 'notice.update', 'notice', noticeId, before, result, identity);
     return ok(result);
   }
 

@@ -19,7 +19,10 @@ export interface AuthorizationFile {
 
 @Injectable()
 export class AuthorizationService {
-  private readonly root = resolve(__dirname, '../../storage/authorizations');
+  // Keep private authorization files under the API data directory. That
+  // directory is already created and owned by the service user on production.
+  private readonly root = resolve(__dirname, '../../data/authorizations');
+  private readonly legacyRoot = resolve(__dirname, '../../storage/authorizations');
 
   save(buffer: Buffer, mime: string, originalName: string): AuthorizationFile {
     const ext = MIME_EXT[mime];
@@ -28,7 +31,7 @@ export class AuthorizationService {
     if (!this.magicMatches(buffer, ext)) throw new Error('INVALID_AUTH_FILE');
     const key = `${new Date().toISOString().slice(0, 10)}/${randomUUID()}.${ext}`;
     const target = resolve(this.root, key);
-    mkdirSync(dirname(target), { recursive: true });
+    mkdirSync(dirname(target), { recursive: true, mode: 0o700 });
     writeFileSync(target, buffer, { mode: 0o600 });
     return {
       key,
@@ -42,17 +45,21 @@ export class AuthorizationService {
     if (!key || key.includes('..') || key.startsWith('/') || key.startsWith('\\')) {
       throw new Error('AUTH_NOT_FOUND');
     }
-    const target = resolve(this.root, key);
-    if (!target.startsWith(this.root) || !existsSync(target)) throw new Error('AUTH_NOT_FOUND');
-    return readFileSync(target);
+    for (const root of [this.root, this.legacyRoot]) {
+      const target = resolve(root, key);
+      if (target.startsWith(root) && existsSync(target)) return readFileSync(target);
+    }
+    throw new Error('AUTH_NOT_FOUND');
   }
 
   remove(key?: string): void {
     if (!key || key.includes('..')) return;
-    try {
-      unlinkSync(resolve(this.root, key));
-    } catch {
-      // Idempotent cleanup.
+    for (const root of [this.root, this.legacyRoot]) {
+      try {
+        unlinkSync(resolve(root, key));
+      } catch {
+        // Idempotent cleanup.
+      }
     }
   }
 

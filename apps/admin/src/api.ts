@@ -230,6 +230,14 @@ export async function downloadOfficialAuthorization(accountId: string): Promise<
   return response.blob();
 }
 
+function dateTimeInput(value?: string) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+}
+
 function mapNotice(item: any): Notice {
   return {
     id: item.id,
@@ -239,6 +247,7 @@ function mapNotice(item: any): Notice {
     source: item.source,
     status: item.status,
     effectiveTo: item.effectiveTo ? new Date(item.effectiveTo).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '未设置',
+    effectiveToRaw: dateTimeInput(item.effectiveTo),
     createdAt: clock(item.createdAt)
   };
 }
@@ -251,6 +260,13 @@ export async function getNotices(): Promise<Notice[]> {
 export async function createNotice(input: { title: string; body: string; type: 'normal' | 'emergency'; source: string; effectiveTo: string }) {
   return request('/admin/notices', {
     method: 'POST',
+    body: JSON.stringify(input)
+  });
+}
+
+export async function updateNotice(id: string, input: { title: string; body: string; type: 'normal' | 'emergency'; source: string; effectiveTo: string }) {
+  return request(`/admin/notices/${id}`, {
+    method: 'PUT',
     body: JSON.stringify(input)
   });
 }

@@ -169,7 +169,16 @@ async function save() {
       });
       accountId = created.id;
     }
-    if (selectedFile.value) await uploadOfficialAuthorization(accountId, selectedFile.value);
+    if (selectedFile.value) {
+      try {
+        await uploadOfficialAuthorization(accountId, selectedFile.value);
+      } catch (uploadError) {
+        dialogVisible.value = false;
+        await load();
+        ElMessage.warning(`官方账号已保存，但授权文件上传失败：${(uploadError as Error).message}。请稍后在列表中重新上传。`);
+        return;
+      }
+    }
     ElMessage.success(selectedFile.value ? '官方账号与授权文件已保存' : '官方账号已保存，请补传授权文件');
     dialogVisible.value = false;
     await load();

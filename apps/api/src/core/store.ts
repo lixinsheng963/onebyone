@@ -1422,6 +1422,23 @@ export class CampusStore {
     return notice;
   }
 
+  updateNotice(
+    noticeId: string,
+    input: { title: string; body: string; type: 'normal' | 'emergency'; source: string; effectiveTo: string }
+  ): Notice | undefined {
+    const notice = this.notices.find((item) => item.id === noticeId);
+    if (!notice) return undefined;
+    notice.title = input.title;
+    notice.body = input.body;
+    notice.type = input.type;
+    notice.source = input.source;
+    notice.effectiveTo = input.effectiveTo;
+    notice.status = 'published';
+    notice.pinned = input.type === 'emergency';
+    this.changed();
+    return notice;
+  }
+
   getReports(): Report[] {
     return this.reports;
   }

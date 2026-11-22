@@ -95,6 +95,7 @@ export interface Notice {
   source: string;
   status: 'published' | 'draft' | 'withdrawn';
   effectiveTo: string;
+  effectiveToRaw?: string;
   createdAt: string;
 }
 

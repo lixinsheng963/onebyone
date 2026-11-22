@@ -1,5 +1,18 @@
 # 更新记录 / Changelog
 
+## v0.3.0-rc.15 — 2026-11-22
+
+### 修复
+- 管理端通知“编辑”改为真正的更新：新增 `PUT /admin/notices/:noticeId`，保留原通知 ID/创建时间，更新标题、正文、类型、来源和有效期；小程序端读取同一条通知，不再新增重复记录。
+- 通知编辑表单使用原始日期时间回填，避免本地化展示文本导致日期控件失效。
+- 官方账号授权文件改存到 API `data/authorizations`，避开生产 `storage` 目录权限问题；下载兼容旧 `storage/authorizations` 文件。
+- 官方账号保存时若授权文件上传失败，明确提示“账号已保存，但授权文件上传失败”，不再显示笼统 `Internal server error`，也不丢失已创建账号。
+- 一键部署/生产更新脚本创建并授权 `data`、`uploads`、`storage` 目录，避免新服务器再次出现同类问题。
+- 审计日志新增 `notice.update`，举报相关逻辑未改动。
+
+### 验证
+- API/admin 构建、通知创建/编辑计数不变、官方账号创建+PDF 上传、授权文件下载、security smoke、e2e-admin/e2e-mysql/e2e-invite 通过。
+
 ## v0.3.0-rc.14 — 2026-11-22
 
 ### 完善

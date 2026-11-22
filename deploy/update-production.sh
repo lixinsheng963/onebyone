@@ -51,6 +51,9 @@ else
   cp -a "$TMP_DIR/package.json" "$TMP_DIR/pnpm-lock.yaml" "$TMP_DIR/pnpm-workspace.yaml" "$APP_DIR/"
 fi
 
+mkdir -p "$APP_DIR/apps/api/uploads" "$APP_DIR/apps/api/data" "$APP_DIR/apps/api/storage"
+chown -R campus:campus "$APP_DIR/apps/api/uploads" "$APP_DIR/apps/api/data" "$APP_DIR/apps/api/storage"
+
 cd "$APP_DIR"
 echo "==> 安装依赖并构建"
 pnpm install --frozen-lockfile

@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { ElMessage } from 'element-plus';
-import { createNotice, getNotices } from '../api';
+import { createNotice, getNotices, updateNotice } from '../api';
 import { useLivePoll } from '../composables/useLivePoll';
 import type { Notice } from '../types';
 
 const items = ref<Notice[]>([]);
 const active = ref<Notice | null>(null);
 const showForm = ref(false);
+const editingId = ref('');
 const error = ref('');
 
 async function load() {
@@ -49,6 +50,30 @@ function choose(item: Notice) {
   showForm.value = false;
 }
 
+function openCreate() {
+  editingId.value = '';
+  form.value = emptyForm();
+  showForm.value = true;
+}
+
+function openEdit(item: Notice) {
+  editingId.value = item.id;
+  form.value = {
+    title: item.title,
+    body: item.body,
+    type: item.type,
+    source: item.source,
+    effectiveTo: item.effectiveToRaw || ''
+  };
+  showForm.value = true;
+}
+
+function closeForm() {
+  showForm.value = false;
+  editingId.value = '';
+  form.value = emptyForm();
+}
+
 async function publish() {
   if (!form.value.title.trim() || !form.value.body.trim()) {
     ElMessage.warning('标题和正文都要填');
@@ -63,16 +88,21 @@ async function publish() {
     return;
   }
   try {
-    await createNotice({
+    const payload = {
       title: form.value.title.trim(),
       body: form.value.body.trim(),
       type: form.value.type,
       source: form.value.source.trim(),
       effectiveTo: new Date(form.value.effectiveTo).toISOString()
-    });
-    showForm.value = false;
-    form.value = emptyForm();
-    ElMessage.success('通知已发布');
+    };
+    if (editingId.value) {
+      await updateNotice(editingId.value, payload);
+      ElMessage.success('通知已更新，小程序端会同步显示');
+    } else {
+      await createNotice(payload);
+      ElMessage.success('通知已发布');
+    }
+    closeForm();
     await load();
   } catch (e) {
     ElMessage.error((e as Error).message);
@@ -86,7 +116,7 @@ async function publish() {
     <section class="card list-panel">
       <div class="card-head">
         <div><h2>通知</h2><p>{{ items.length }} 条 · 紧急优先</p></div>
-        <button class="btn btn-primary btn-sm" @click="showForm = true">＋ 新建</button>
+        <button class="btn btn-primary btn-sm" @click="openCreate">＋ 新建</button>
       </div>
       <div class="card-body">
         <div v-for="item in sorted" :key="item.id" class="notice-row" :class="{ active: active?.id === item.id }" @click="choose(item)">
@@ -102,7 +132,7 @@ async function publish() {
 
     <section class="card detail-panel">
       <div v-if="showForm" class="card-body">
-        <div class="section-title"><h3>新建通知</h3><button class="btn btn-ghost btn-sm" @click="showForm = false">取消</button></div>
+        <div class="section-title"><h3>{{ editingId ? '编辑通知' : '新建通知' }}</h3><button class="btn btn-ghost btn-sm" @click="closeForm">取消</button></div>
         <div class="form-grid">
           <div class="field"><label>类型</label><select v-model="form.type" class="select"><option value="normal">校方通知</option><option value="emergency">紧急通知（首页顶部）</option></select></div>
           <div class="field"><label>来源</label><input v-model="form.source" class="input" placeholder="例如：学校图书馆" /></div>
@@ -118,7 +148,7 @@ async function publish() {
             <div class="meta">{{ form.source }} · 有效期至 {{ form.effectiveTo }}</div>
           </div>
         </div>
-        <div class="decision-bar"><button class="btn btn-primary" @click="publish">发布通知</button></div>
+        <div class="decision-bar"><button class="btn btn-primary" @click="publish">{{ editingId ? '保存修改' : '发布通知' }}</button></div>
       </div>
 
       <div v-else-if="active" class="card-body">
@@ -131,7 +161,7 @@ async function publish() {
             <h2>{{ active.title }}</h2>
             <p>{{ active.source }} · {{ active.createdAt }} · 有效期至 {{ active.effectiveTo }}</p>
           </div>
-          <button class="btn btn-outline btn-sm" @click="showForm = true">编辑</button>
+          <button class="btn btn-outline btn-sm" @click="openEdit(active)">编辑</button>
         </div>
         <div class="notice-preview" :class="{ 'emergency-preview': active.type === 'emergency' }">
           <h4>{{ active.title }}</h4>

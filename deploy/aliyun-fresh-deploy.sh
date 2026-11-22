@@ -88,8 +88,14 @@ if ! command -v node >/dev/null 2>&1 || [[ "$(node -p 'process.versions.node.spl
   hash -r
 fi
 node -v
-corepack enable
-corepack prepare pnpm@11.28.5 --activate
+if command -v corepack >/dev/null 2>&1; then
+  corepack enable
+  corepack prepare pnpm@11.28.5 --activate
+fi
+if ! command -v pnpm >/dev/null 2>&1; then
+  npm install -g pnpm@11.28.5
+fi
+pnpm --version
 
 log "申请 HTTPS 证书（Let's Encrypt / acme.sh）"
 mkdir -p "$CERT_DIR"

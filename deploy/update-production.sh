@@ -58,6 +58,8 @@ pnpm --filter @campus/api build
 pnpm --filter @campus/admin build
 
 if [ "$CLEAN_DEMO" = "1" ]; then
+  echo "==> 停止 API，避免旧内存快照把演示数据写回"
+  systemctl stop campus-api
   echo "==> 清除项目初始演示数据（保留真实用户 Simon 等）"
   (cd "$APP_DIR/apps/api" && node scripts/clean-demo-content.mjs --apply)
 fi

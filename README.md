@@ -70,7 +70,18 @@ node tools/check-wxml.mjs
 
 ## 阿里云单机一键部署
 
-项目上传到服务器 `/opt/campus` 后执行。生产安装必须提供已备案域名、TLS 证书和正式微信 AppID/Secret：
+全新 Alibaba Cloud Linux 4、已备案域名（A 记录指向 ECS）、安全组已放行 80/443 时，可直接在服务器 root 终端执行：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/lixinsheng963/onebyone/main/deploy/aliyun-fresh-deploy.sh -o /tmp/campus-deploy.sh
+sudo DOMAIN=agideepseek.vip ACME_EMAIL=2576264825@qq.com \
+  WX_APPID=wx... WX_SECRET=... \
+  bash /tmp/campus-deploy.sh
+```
+
+脚本会自动安装 Node 20、pnpm、MySQL 8、Redis、Nginx，用 acme.sh 签发 Let's Encrypt 证书，建库建用户，生成 `.env`/TOTP/管理员密码/首次邀请码，构建 API 与管理端，启动 systemd 并以公网 `/readyz` 验收。
+
+项目已上传到服务器 `/opt/campus` 时，也可使用现有安装器（要求证书已存在）：
 
 ```bash
 cd /opt/campus
@@ -81,7 +92,7 @@ sudo DOMAIN=campus.example.com \
   bash deploy/alibaba-oneclick.sh
 ```
 
-脚本会安装 Node、pnpm、MySQL、Redis、Nginx，创建数据库/用户，生成 `.env`、TOTP 和密码，构建 API/管理后台，先运行生产预检，再配置 systemd 与 HTTPS Nginx，最后用 `/readyz` 做公网验收。`ALLOW_DEMO_LOGIN` 固定为 `false`；没有域名/证书/微信参数会拒绝执行。首次在生产服务器运行请把预检报错发回来。
+`ALLOW_DEMO_LOGIN` 固定为 `false`；没有域名/证书/微信参数会拒绝执行。首次在生产服务器运行请把预检报错发回来。
 
 ## 安全
 

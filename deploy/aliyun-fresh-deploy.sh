@@ -97,6 +97,13 @@ if ! command -v pnpm >/dev/null 2>&1; then
 fi
 pnpm --version
 
+log "放行本机防火墙 80/443"
+if command -v firewall-cmd >/dev/null 2>&1 && firewall-cmd --state >/dev/null 2>&1; then
+  firewall-cmd --permanent --add-service=http >/dev/null || true
+  firewall-cmd --permanent --add-service=https >/dev/null || true
+  firewall-cmd --reload >/dev/null || true
+fi
+
 log "申请 HTTPS 证书（Let's Encrypt / acme.sh）"
 mkdir -p "$CERT_DIR"
 if [[ ! -s "$CERT_FULLCHAIN" || ! -s "$CERT_KEY" ]]; then

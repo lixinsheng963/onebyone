@@ -1,5 +1,29 @@
 # 生产部署手册
 
+## 0. 全新阿里云 ECS 一键部署
+
+适用：Alibaba Cloud Linux 4、全新实例、已备案域名、测试号或正式微信小程序。
+脚本会自动安装 Node 20、pnpm、MySQL 8、Redis、Nginx，使用 acme.sh 申请 Let's Encrypt 证书，构建 API/管理端并启动 systemd 服务。
+
+```bash
+# 在 ECS 的 root 终端执行（域名 A 记录必须已指向本机，安全组已放行 80/443）
+curl -fsSL https://raw.githubusercontent.com/lixinsheng963/onebyone/main/deploy/aliyun-fresh-deploy.sh -o /tmp/campus-deploy.sh
+sudo DOMAIN=agideepseek.vip ACME_EMAIL=2576264825@qq.com \
+  WX_APPID=你的AppID WX_SECRET=你的AppSecret \
+  bash /tmp/campus-deploy.sh
+```
+
+如果 `raw.githubusercontent.com` 在当前网络不可达，先在能访问 GitHub 的电脑下载该文件，再通过宝塔面板/SCP 上传到 ECS 后执行。
+
+脚本结束会打印管理端地址、管理员密码、TOTP secret、首次邀请码、MySQL 和 Redis 密码。**只显示一次，请立即保存。**
+
+部署完成后还需要：
+
+1. 在微信公众平台/测试号后台，把 `https://agideepseek.vip` 加入 request 合法域名；
+2. 把 `apps/miniprogram/utils/config.js` 的 `baseUrl` 改为 `https://agideepseek.vip/api/v1`，重新编译；
+3. 阿里云安全组只开放 22/80/443，不要开放 3306/6379；
+4. 用首次邀请码完成小程序注册，再在管理端邀请码页创建后续邀请码。
+
 ## 1. 前置条件
 
 - 一台 2C4G 以上 Linux 服务器（阿里云 Linux 4 / Ubuntu 22.04）。

@@ -7,13 +7,15 @@
 
 ```bash
 # 在 ECS 的 root 终端执行（域名 A 记录必须已指向本机，安全组已放行 80/443）
-curl -fsSL https://cdn.jsdelivr.net/gh/lixinsheng963/onebyone@main/deploy/aliyun-fresh-deploy.sh -o /tmp/campus-deploy.sh
+rm -rf /tmp/campus-src && mkdir -p /tmp/campus-src
+curl -fsSL https://codeload.github.com/lixinsheng963/onebyone/tar.gz/refs/heads/main \
+  | tar -xz -C /tmp/campus-src --strip-components=1
 sudo DOMAIN=agideepseek.vip ACME_EMAIL=2576264825@qq.com \
-  WX_APPID=你的AppID WX_SECRET=你的AppSecret \
-  bash /tmp/campus-deploy.sh
+  SOURCE_DIR=/tmp/campus-src WX_APPID=你的AppID WX_SECRET=你的AppSecret \
+  bash /tmp/campus-src/deploy/aliyun-fresh-deploy.sh
 ```
 
-如果 `raw.githubusercontent.com` 在当前网络不可达，先在能访问 GitHub 的电脑下载该文件，再通过宝塔面板/SCP 上传到 ECS 后执行。
+如果 `codeload.github.com` 在当前网络不可达，先在能访问 GitHub 的电脑下载源码包，通过宝塔面板/SCP 上传并解压到 `/tmp/campus-src`，再执行最后一条 `sudo ...` 命令。
 
 脚本结束会打印管理端地址、管理员密码、TOTP secret、首次邀请码、MySQL 和 Redis 密码。**只显示一次，请立即保存。**
 

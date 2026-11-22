@@ -73,10 +73,12 @@ node tools/check-wxml.mjs
 全新 Alibaba Cloud Linux 4、已备案域名（A 记录指向 ECS）、安全组已放行 80/443 时，可直接在服务器 root 终端执行：
 
 ```bash
-curl -fsSL https://cdn.jsdelivr.net/gh/lixinsheng963/onebyone@main/deploy/aliyun-fresh-deploy.sh -o /tmp/campus-deploy.sh
+rm -rf /tmp/campus-src && mkdir -p /tmp/campus-src
+curl -fsSL https://codeload.github.com/lixinsheng963/onebyone/tar.gz/refs/heads/main \
+  | tar -xz -C /tmp/campus-src --strip-components=1
 sudo DOMAIN=agideepseek.vip ACME_EMAIL=2576264825@qq.com \
-  WX_APPID=wx... WX_SECRET=... \
-  bash /tmp/campus-deploy.sh
+  SOURCE_DIR=/tmp/campus-src WX_APPID=wx... WX_SECRET=... \
+  bash /tmp/campus-src/deploy/aliyun-fresh-deploy.sh
 ```
 
 脚本会自动安装 Node 20、pnpm、MySQL 8、Redis、Nginx，用 acme.sh 签发 Let's Encrypt 证书，建库建用户，生成 `.env`/TOTP/管理员密码/首次邀请码，构建 API 与管理端，启动 systemd 并以公网 `/readyz` 验收。

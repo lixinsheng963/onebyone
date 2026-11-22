@@ -116,7 +116,12 @@ systemctl restart redis
 redis-cli -a "$REDIS_PASSWORD" ping >/dev/null
 
 log "下载并构建项目"
-if [[ -d "$APP_DIR/.git" ]]; then
+if [[ -n "${SOURCE_DIR:-}" ]]; then
+  [[ -d "$SOURCE_DIR" ]] || { echo "SOURCE_DIR 不存在: $SOURCE_DIR" >&2; exit 1; }
+  rm -rf "$APP_DIR"
+  mkdir -p "$APP_DIR"
+  cp -a "$SOURCE_DIR/." "$APP_DIR/"
+elif [[ -d "$APP_DIR/.git" ]]; then
   git -C "$APP_DIR" fetch --depth 1 origin main
   git -C "$APP_DIR" reset --hard origin/main
 else

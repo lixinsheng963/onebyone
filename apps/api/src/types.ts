@@ -29,6 +29,9 @@ export interface User {
   mutedUntil?: string;
   statusReason?: string;
   deletedAt?: string;
+  school?: string;
+  schoolSelectedAt?: string;
+  admittedAt?: string;
   createdAt: string;
 }
 

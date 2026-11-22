@@ -13,7 +13,11 @@
             <text wx:if="{{user.level === 'L2'}}" class="verified">本校认证</text>
             <text wx:if="{{user.isOfficial}}" class="badge badge-official">官方</text>
           </view>
-          <view class="me-sub">{{user.school || '示例大学'}} · {{user.bio || '把今天的小事记下来'}}</view>
+          <view class="me-sub" bindtap="chooseSchool">
+            <text class="{{user.school ? '' : 'school-unset'}}">{{user.school || '选择学校'}}</text>
+            <text wx:if="{{!user.school}}" class="school-arrow">›</text>
+            <text> · {{user.bio || '把今天的小事记下来'}}</text>
+          </view>
         </view>
       </view>
     </view>

@@ -187,6 +187,8 @@ export class PostsController {
     if (message === 'NOT_FOUND') throw new NotFoundException('内容不存在');
     if (message === 'ACCOUNT_MUTED') throw new ForbiddenException('账号已被禁言，暂时无法点赞或收藏');
     if (message === 'ACCOUNT_DISABLED') throw new ForbiddenException('账号已被停用');
+    if (message === 'INVITE_REQUIRED') throw new ForbiddenException('请先完成邀请码认证');
+    if (message === 'SCHOOL_REQUIRED') throw new ForbiddenException('请到“我的”页面选择学校');
     throw error as Error;
   }
 
@@ -197,6 +199,8 @@ export class PostsController {
     if (message === 'COMMENTS_CLOSED') throw new BadRequestException('该内容已关闭评论');
     if (message === 'ACCOUNT_MUTED') throw new ForbiddenException('账号已被禁言，暂时无法发布内容');
     if (message === 'ACCOUNT_DISABLED') throw new ForbiddenException('账号已被停用');
+    if (message === 'INVITE_REQUIRED') throw new ForbiddenException('请先完成邀请码认证');
+    if (message === 'SCHOOL_REQUIRED') throw new ForbiddenException('请到“我的”页面选择学校');
     throw error as Error;
   }
 

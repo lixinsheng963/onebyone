@@ -567,6 +567,20 @@ export class StoreService extends CampusStore implements OnModuleDestroy {
     return result.affectedRows > 0;
   }
 
+  async checkInvite(code: string): Promise<{ ok: boolean; message: string }> {
+    if (!this.pool) return super.checkInvite(code);
+    const [rows] = await this.pool.query<any[]>(
+      'SELECT status, expires_at, max_uses, used_count FROM invite_codes WHERE code_hash = ? LIMIT 1',
+      [this.inviteHash(code)]
+    );
+    const invite = rows[0];
+    const expired = invite ? new Date(invite.expires_at).getTime() <= Date.now() : true;
+    if (!invite || invite.status !== 'active' || expired || Number(invite.used_count) >= Number(invite.max_uses)) {
+      return { ok: false, message: '邀请码无效或已使用' };
+    }
+    return { ok: true, message: '邀请码有效' };
+  }
+
   async redeemInvite(code: string, token?: string): Promise<{ ok: boolean; message: string; user?: User }> {
     if (!this.pool) return super.redeemInvite(code, token);
     const user = this.getUserByToken(token);
@@ -589,6 +603,13 @@ export class StoreService extends CampusStore implements OnModuleDestroy {
         `UPDATE invite_codes SET used_count = ?, status = ? WHERE id = ?`,
         [nextCount, nextCount >= Number(invite.max_uses) ? 'used' : 'active', invite.id]
       );
+      if (!user.admittedAt) {
+        user.admittedAt = new Date().toISOString();
+        await connection.query(
+          'UPDATE users SET admitted_at = COALESCE(admitted_at, NOW(3)), updated_at = NOW(3) WHERE public_id = ?',
+          [user.publicId]
+        );
+      }
       await connection.commit();
       this.markDirty();
       return { ok: true, message: '认证成功', user };
@@ -714,7 +735,8 @@ export class StoreService extends CampusStore implements OnModuleDestroy {
     if (!this.pool) return null;
     const [userRows] = await this.pool.query<any[]>(
       `SELECT id, public_id, openid, nickname, avatar_url, role, level, is_official, official_org,
-              official_base_role, official_base_level, status, muted_until, status_reason, deleted_at, created_at
+              official_base_role, official_base_level, status, muted_until, status_reason, deleted_at,
+              school, school_selected_at, admitted_at, created_at
        FROM users ORDER BY id`
     );
     if (!userRows.length) return null;
@@ -739,6 +761,9 @@ export class StoreService extends CampusStore implements OnModuleDestroy {
         mutedUntil: row.muted_until ? asIso(row.muted_until, '') : undefined,
         statusReason: row.status_reason || undefined,
         deletedAt: row.deleted_at ? asIso(row.deleted_at, '') : undefined,
+        school: row.school || undefined,
+        schoolSelectedAt: row.school_selected_at ? asIso(row.school_selected_at, '') : undefined,
+        admittedAt: row.admitted_at ? asIso(row.admitted_at, '') : undefined,
         createdAt: asIso(row.created_at, nowIso())
       });
     }
@@ -1179,14 +1204,16 @@ export class StoreService extends CampusStore implements OnModuleDestroy {
     for (const user of changed) {
       const [result] = await connection.query<ResultSetHeader>(
         `INSERT INTO users (public_id, openid, nickname, avatar_url, role, level, is_official, official_org,
-           official_base_role, official_base_level, status, muted_until, status_reason, deleted_at, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+           official_base_role, official_base_level, status, muted_until, status_reason, deleted_at,
+           school, school_selected_at, admitted_at, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id), openid = VALUES(openid),
            nickname = VALUES(nickname), avatar_url = VALUES(avatar_url), role = VALUES(role),
            level = VALUES(level), is_official = VALUES(is_official), official_org = VALUES(official_org),
            official_base_role = VALUES(official_base_role), official_base_level = VALUES(official_base_level),
            status = VALUES(status), muted_until = VALUES(muted_until), status_reason = VALUES(status_reason),
-           deleted_at = VALUES(deleted_at)`,
+           deleted_at = VALUES(deleted_at), school = VALUES(school),
+           school_selected_at = VALUES(school_selected_at), admitted_at = VALUES(admitted_at)`,
         [
           user.id,
           user.openid || null,
@@ -1202,6 +1229,9 @@ export class StoreService extends CampusStore implements OnModuleDestroy {
           asSqlDate(user.mutedUntil) || null,
           user.statusReason || null,
           asSqlDate(user.deletedAt) || null,
+          user.school || null,
+          asSqlDate(user.schoolSelectedAt) || null,
+          asSqlDate(user.admittedAt) || null,
           asSqlDate(user.createdAt) || asSqlDate(nowIso())
         ]
       );

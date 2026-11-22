@@ -35,6 +35,10 @@ export const MYSQL_SCHEMA_STATEMENTS: string[] = [
     official_base_role VARCHAR(24) NULL,
     official_base_level VARCHAR(8) NULL,
     status VARCHAR(24) NOT NULL DEFAULT 'active',
+    mobile VARCHAR(32) NULL,
+    school VARCHAR(64) NULL,
+    school_selected_at DATETIME(3) NULL,
+    admitted_at DATETIME(3) NULL,
     verification_status VARCHAR(24) NOT NULL DEFAULT 'unverified',
     created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
@@ -437,6 +441,10 @@ export async function ensureMysqlSchema(pool: Pool): Promise<void> {
       ['users', 'muted_until', '`muted_until` DATETIME(3) NULL AFTER `status`'],
       ['users', 'status_reason', '`status_reason` VARCHAR(255) NULL AFTER `muted_until`'],
       ['users', 'deleted_at', '`deleted_at` DATETIME(3) NULL AFTER `status_reason`'],
+      ['users', 'mobile', '`mobile` VARCHAR(32) NULL AFTER `status`'],
+      ['users', 'school', '`school` VARCHAR(64) NULL AFTER `mobile`'],
+      ['users', 'school_selected_at', '`school_selected_at` DATETIME(3) NULL AFTER `school`'],
+      ['users', 'admitted_at', '`admitted_at` DATETIME(3) NULL AFTER `school_selected_at`'],
       ['posts', 'latitude', '`latitude` DECIMAL(10,6) NULL AFTER `location_id`'],
       ['posts', 'longitude', '`longitude` DECIMAL(10,6) NULL AFTER `latitude`'],
       ['posts', 'share_count', '`share_count` INT NOT NULL DEFAULT 0 AFTER `favorite_count`'],
@@ -499,6 +507,18 @@ export async function ensureMysqlSchema(pool: Pool): Promise<void> {
       'INSERT IGNORE INTO schema_migrations (version) VALUES (?)',
       ['2026-11-21-post-share-location-v10']
     );
+    const [onboardingMigrated] = await connection.query<any[]>(
+      'SELECT 1 FROM schema_migrations WHERE version = ? LIMIT 1',
+      ['2026-11-22-user-onboarding-v11']
+    );
+    if (!onboardingMigrated.length) {
+      // Existing accounts predate invite admission; keep them usable. New accounts stay unadmitted.
+      await connection.query('UPDATE users SET admitted_at = created_at WHERE admitted_at IS NULL');
+      await connection.query(
+        'INSERT IGNORE INTO schema_migrations (version) VALUES (?)',
+        ['2026-11-22-user-onboarding-v11']
+      );
+    }
 
     await connection.query('INSERT IGNORE INTO notice_slot (id, active_notice_id) VALUES (1, NULL)');
   } finally {

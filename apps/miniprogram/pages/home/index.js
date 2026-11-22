@@ -30,6 +30,10 @@ Page({
   },
 
   onShow() {
+    if (!wx.getStorageSync('campus_token')) {
+      wx.reLaunch({ url: '/pages/auth/index' });
+      return;
+    }
     if (this._loaded) this.load(true);
     this._loaded = true;
     this.refreshUnread();

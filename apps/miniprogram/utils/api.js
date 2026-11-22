@@ -6,7 +6,31 @@ function token() {
   return wx.getStorageSync('campus_token') || '';
 }
 
+function showSchoolRequired() {
+  wx.showModal({
+    title: '请选择学校',
+    content: '请先到“我的”页面选择学校，再使用发布、评论、点赞等功能。',
+    showCancel: false,
+    confirmText: '去选择',
+    success() {
+      wx.switchTab({ url: '/pages/me/index' });
+    }
+  });
+}
+
 function request(path, method, data) {
+  const currentUser = wx.getStorageSync('campus_user');
+  const write = (method || 'GET') !== 'GET';
+  const authPath = path.indexOf('/auth/') === 0;
+  const browsingWrite = /\/posts\/[^/]+\/view$/.test(path);
+  if (write && !browsingWrite && currentUser && !authPath && path !== '/me' && (!currentUser.admittedAt || !currentUser.school)) {
+    if (!currentUser.admittedAt) {
+      wx.reLaunch({ url: '/pages/auth/index' });
+    } else {
+      showSchoolRequired();
+    }
+    return Promise.reject(new Error('请先完成学校选择'));
+  }
   return new Promise((resolve, reject) => {
     wx.request({
       url: `${config.baseUrl}${path}`,
@@ -79,22 +103,30 @@ function login() {
   });
 }
 
+function checkInvite(code) {
+  if (!config.useRemote) return Promise.resolve(mock.checkInvite(code));
+  return request('/auth/invite/check', 'POST', { code });
+}
+
 function redeem(code) {
   if (!config.useRemote) return Promise.resolve(mock.redeem(code));
-  return request('/auth/invite/redeem', 'POST', { code });
+  return request('/auth/invite/redeem', 'POST', { code }).then((result) => {
+    if (result && result.ok && result.user) {
+      wx.setStorageSync('campus_user', result.user);
+      const app = getApp();
+      if (app) app.setUser(result.user);
+    }
+    return result;
+  });
 }
 
 function logout() {
   if (config.useRemote) request('/auth/logout', 'POST').catch(() => {});
-  wx.removeStorageSync('campus_token');
-  wx.removeStorageSync('campus_user');
+  (wx.getStorageInfoSync().keys || []).forEach((key) => {
+    if (key.indexOf('campus_') === 0) wx.removeStorageSync(key);
+  });
   const app = getApp();
   if (app) app.setUser(null);
-}
-
-function deleteAccount() {
-  if (!config.useRemote) return Promise.resolve({ deleted: true });
-  return request('/me', 'DELETE');
 }
 
 function updateProfile(profile) {
@@ -235,6 +267,11 @@ function uploadMedia(filePath) {
   if (!config.useRemote) {
     return Promise.resolve({ id: `local_${Date.now()}`, url: filePath, width: 1000, height: 750 });
   }
+  const currentUser = wx.getStorageSync('campus_user');
+  if (currentUser && !currentUser.school) {
+    showSchoolRequired();
+    return Promise.reject(new Error('请先选择学校'));
+  }
   return new Promise((resolve, reject) => {
     wx.uploadFile({
       url: `${config.baseUrl}/media`,
@@ -333,10 +370,10 @@ function submitAppeal(data) {
 }
 
 module.exports = {
+  checkInvite,
   login,
   redeem,
   logout,
-  deleteAccount,
   updateProfile,
   getUser,
   getFeed,

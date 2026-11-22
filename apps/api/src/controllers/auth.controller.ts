@@ -53,6 +53,21 @@ export class AuthController {
     return ok({ loggedOut: true });
   }
 
+  @Post('auth/invite/check')
+  async checkInvite(@Body() body: { code?: string }, @Req() req: FastifyRequest) {
+    const key = `invite-check:${req.ip}`;
+    try {
+      await this.loginThrottle.check(key, 20, 10 * 60 * 1000);
+    } catch {
+      throw new HttpException('尝试次数过多，请稍后再试', HttpStatus.TOO_MANY_REQUESTS);
+    }
+    const code = requireText(body?.code, 64, '邀请码');
+    const result = await this.store.checkInvite(code);
+    if (!result.ok) await this.loginThrottle.fail(key, 20, 10 * 60 * 1000);
+    else await this.loginThrottle.success(key);
+    return ok(result);
+  }
+
   @Post('auth/invite/redeem')
   async redeem(@Body() body: { code?: string }, @Req() req: FastifyRequest) {
     const token = tokenFrom(req);

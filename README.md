@@ -4,9 +4,10 @@
 
 ## 版本状态
 
-- 当前版本：`v0.3.0-rc.12`（2026-11-21）
-- 已跑通：小程序核心内容闭环、管理端 12 个栏目、MySQL 规范化持久化、Redis 限流、AI 文本/图片举报复核、邀请码、审计日志、RBAC/学校审核人、官方账号授权链与运营者绑定、用户治理、真实注销、申诉、单人终审（全风险等级）、图片安全适配器、生产配置校验与压测。
+- 当前版本：`v0.3.0-rc.13`（2026-11-22）
+- 已跑通：小程序核心内容闭环、管理端 12 个栏目、MySQL 规范化持久化、Redis 限流、AI 文本/图片举报复核、邀请码准入、审计日志、RBAC/学校审核人、官方账号授权链与运营者绑定、用户治理、申诉、单人终审（全风险等级）、图片安全适配器、生产配置校验与压测。
 - v0.3.0-rc.8 修复：移除 `app.json` 中非法的 `requiredPrivateInfos: openLocation`，解决微信开发者工具“模拟器启动失败”；新增 `pnpm check:mini`，上线前静态校验隐私字段、页面/图标/组件、事件处理函数和资源引用。
+- v0.3.0-rc.13 完善：新用户先邀请码校验、再微信登录/资料授权，未授权时使用唯一随机 6 字昵称；未选择学校只能浏览，写操作统一提示并引导“我的”选择湖南人文科技学院，学校选择后锁定；移除注销账号，只保留退出登录并清理全部 `campus_*` 本地缓存；图片上传不再限制 20 张/小时。
 - v0.3.0-rc.12 修复：学校审核员登录概览不再预取无权限的审核队列，概览“看配置”仅平台管理员可见；管理端启动先确认角色再渲染页面，避免学校/内容审核员首屏出现“API 连接失败：当前角色无权访问该功能”。
 - v0.3.0-rc.11 完善：审核队列/官方运营者/举报双方头像链路继续补齐头像居中；申诉只允许本人被隐藏或未通过的内容，管理端拆分“待复核/已审核申诉”，平台管理员可兜底；首页通知角标和通知页每 5 秒轮询、回到页面立即刷新。
 - v0.3.0-rc.10 完善：审核队列发布者、官方运营者、举报双方头像全链路；图片存储、MySQL、Redis 压力测试完成。
@@ -125,16 +126,16 @@ docker compose -f deploy/docker-compose.yml up -d --build
 
 ## 账号与登录
 
-- 本地演示：`ALLOW_DEMO_LOGIN=true` 时允许固定用户登录；生产必须设为 `false`。
+- 本地演示：`ALLOW_DEMO_LOGIN=true` 时所有真机/微信号都会落到同一个演示账号 `u_me`，这不代表生产账号逻辑；要验证“不同微信号不同账号”，必须配置测试号/正式号的 `WX_APPID/WX_SECRET` 并设 `ALLOW_DEMO_LOGIN=false` 后重启 API。生产必须设为 `false`。
 - 生产微信登录：配置 `WX_APPID/WX_SECRET`，并设置 `ALLOW_DEMO_LOGIN=false`，API 会调用微信 `code2Session`。
 - 管理员账号：平台根账号由 `.env` 的 `ADMIN_EMAIL / ADMIN_PASSWORD / ADMIN_TOTP_SECRET` 初始化并同步到 `admin_users`（scrypt 哈希）；平台管理员可在“团队权限”创建内容审核员/学校审核人。根账号 env 兜底仅用于平台管理员，普通管理员登录以数据库账号为准。
 - 管理后台已接真实 API：审核队列 1 秒、概览/举报 2 秒、其余页面 3-4 秒静默轮询；单飞、页面隐藏暂停、失败退避，发布后无需手动刷新。举报页展示内容和 AI 初筛详情；审核队列由一名有权限的审核员直接终审，审核记录保留在案件时间线中。
 - 管理员 TOTP：`ADMIN_TOTP_SECRET` 必须是 Base32（A-Z2-7）；用 Authenticator 扫描 `otpauth://totp/Campus:admin@campus.local?secret=<secret>&issuer=Campus`。本地临时可用 `ADMIN_TOTP=123456` 并清空 secret。
-- 邀请码：客户端只接受管理后台发放的邀请码，旧的本地默认 `CAMPUS` 会在启动时自动吊销；MySQL `invite_codes` 已接入次数/过期/吊销校验，后台“邀请码”页可创建/吊销并实时显示已用次数，API 为 `GET/POST /api/v1/admin/invite-codes` 与 `POST /api/v1/admin/invite-codes/:id/revoke`。
+- 邀请码与入学：客户端只接受管理后台发放的邀请码，旧的本地默认 `CAMPUS` 会在启动时自动吊销；MySQL `invite_codes` 已接入次数/过期/吊销校验，后台“邀请码”页可创建/吊销并实时显示已用次数，API 为 `GET/POST /api/v1/admin/invite-codes` 与 `POST /api/v1/admin/invite-codes/:id/revoke`。首次进入先校验邀请码（`POST /api/v1/auth/invite/check`），再登录并兑换；兑换后必须选择湖南人文科技学院才能发布、评论、点赞、收藏、举报、申诉或上传，未选学校只允许浏览。学校选择后锁定；退出登录会清理全部 `campus_*` 本地缓存。
 - 官方账号：后台可新建/编辑组织、绑定真实运营者、上传授权文件、学校审核人初审、平台复核、暂停/换绑/到期自动失效；授权文件只允许管理员下载，不能匿名访问。未绑定运营者不能复核生效，避免占位账号发布。
 - 运营手册：[docs/ADMIN-RUNBOOK.md](docs/ADMIN-RUNBOOK.md) 含官方账号、学校授权/审核人、团队权限的逐步操作与自测表；部署与监控见 [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)。
 - 监控告警：`deploy/scripts/healthcheck-alert.sh` 检查 `/healthz` + `/readyz`，状态变化时通过 `send-alert-email.py`/`send-alert-email.sh` 发送邮件；默认收件人 `2576264825@qq.com`，需要在生产 env 配置 SMTP 地址/账号/授权码/发件人，实际发信以收件箱为准。
-- 账号治理：后台“用户治理”支持禁言/封禁/恢复；小程序设置页可真实注销；举报/申诉/审核均留审计记录。
+- 账号治理：后台“用户治理”支持禁言/封禁/恢复；小程序设置页只保留退出登录（清理全部 `campus_*` 缓存），注销账号入口已移除；举报/申诉/审核均留审计记录。
 - 生产环境必须接入真实微信 `code2Session`、HTTPS、TOTP、MySQL、Redis、COS 与 DeepSeek。
 
 ## 已实现

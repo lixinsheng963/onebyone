@@ -315,6 +315,7 @@ export const MYSQL_SCHEMA_STATEMENTS: string[] = [
     authorization_file_name VARCHAR(255) NULL,
     authorization_mime VARCHAR(100) NULL,
     authorization_size INT UNSIGNED NULL,
+    authorization_requested_at DATETIME(3) NULL,
     scope JSON NULL,
     status VARCHAR(24) NOT NULL DEFAULT 'pending_school',
     school_reviewed_by BIGINT UNSIGNED NULL,
@@ -452,6 +453,7 @@ export async function ensureMysqlSchema(pool: Pool): Promise<void> {
       ['official_accounts', 'authorization_file_name', '`authorization_file_name` VARCHAR(255) NULL AFTER `authorization_file_key`'],
       ['official_accounts', 'authorization_mime', '`authorization_mime` VARCHAR(100) NULL AFTER `authorization_file_name`'],
       ['official_accounts', 'authorization_size', '`authorization_size` INT UNSIGNED NULL AFTER `authorization_mime`'],
+      ['official_accounts', 'authorization_requested_at', '`authorization_requested_at` DATETIME(3) NULL AFTER `authorization_size`'],
       ['official_accounts', 'school_reviewed_at', '`school_reviewed_at` DATETIME(3) NULL AFTER `school_reviewed_by`'],
       ['official_accounts', 'platform_reviewed_at', '`platform_reviewed_at` DATETIME(3) NULL AFTER `reviewed_by`']
     ];
@@ -519,6 +521,10 @@ export async function ensureMysqlSchema(pool: Pool): Promise<void> {
         ['2026-11-22-user-onboarding-v11']
       );
     }
+    await connection.query(
+      'INSERT IGNORE INTO schema_migrations (version) VALUES (?)',
+      ['2026-11-23-official-authorization-reminder-v16']
+    );
 
     await connection.query('INSERT IGNORE INTO notice_slot (id, active_notice_id) VALUES (1, NULL)');
   } finally {

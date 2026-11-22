@@ -164,7 +164,7 @@ function reloadPage() {
         <h1>把今天的小事，<br />认真地接下来。</h1>
         <p>内容审核、官方通知、热度配置。所有判断留痕，所有操作可回看。</p>
       </div>
-      <div class="login-foot">2C4G · 单校版 · v0.3.0-rc.15</div>
+      <div class="login-foot">2C4G · 单校版 · v0.3.0-rc.16</div>
     </div>
     <div class="login-panel">
       <div class="login-form">
@@ -223,10 +223,10 @@ function reloadPage() {
           <div class="duty-dot"></div>
           <div>
             <b>今日值班</b>
-            <p>小何 · 内容安全</p>
+            <p>{{ role === 'school_reviewer' ? '学校审核人' : role === 'content_reviewer' ? '内容审核员' : '平台管理员' }}</p>
           </div>
         </div>
-        <div class="side-meta">v0.3.0-rc.15 · 单校运营台</div>
+        <div class="side-meta">v0.3.0-rc.16 · 单校运营台</div>
       </div>
     </aside>
 

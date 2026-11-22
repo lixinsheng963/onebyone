@@ -151,6 +151,12 @@ async function decide(decision: 'approved' | 'rejected') {
           <span v-if="selected.post.alias" class="badge badge-gray">{{ selected.post.alias }}</span>
         </div>
 
+        <div v-if="selected.post.media?.length" class="detail-images">
+          <a v-for="url in selected.post.media" :key="url" :href="url" target="_blank" rel="noopener">
+            <img :src="url" alt="审核内容图片" loading="lazy" />
+          </a>
+        </div>
+
         <p class="detail-body">{{ selected.post.text }}</p>
 
         <div class="ai-box">
@@ -224,7 +230,10 @@ async function decide(decision: 'approved' | 'rejected') {
 .author-line b { font-size: 12px; }
 .author-line p { margin: 2px 0 0; color: var(--muted); font-size: 10px; }
 .author-line .badge { margin-left: auto; }
-.detail-body { font-size: 14px; line-height: 1.95; color: var(--ink); }
+.detail-images { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 14px; }
+.detail-images a { display: block; border-radius: 10px; overflow: hidden; background: #efe9dc; }
+.detail-images img { display: block; width: 100%; max-height: 360px; object-fit: contain; }
+.detail-body { font-size: 14px; line-height: 1.95; color: var(--ink); white-space: pre-wrap; word-break: break-word; }
 .ai-note { color: var(--muted) !important; font-size: 10px !important; margin-top: 8px !important; }
 .history { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 18px 0; padding: 12px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
 .history div { display: flex; flex-direction: column; gap: 3px; }

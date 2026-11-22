@@ -242,6 +242,7 @@ export interface OfficialAccount {
   authorizationFileName?: string;
   authorizationMime?: string;
   authorizationSize?: number;
+  authorizationRequestedAt?: string;
   schoolReviewedBy?: string;
   schoolReviewedById?: number;
   schoolReviewedAt?: string;

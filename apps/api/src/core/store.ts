@@ -1349,6 +1349,15 @@ export class CampusStore {
     item.authorizationFileName = file.name;
     item.authorizationMime = file.mime;
     item.authorizationSize = file.size;
+    item.authorizationRequestedAt = undefined;
+    this.changed();
+    return item;
+  }
+
+  requestOfficialAuthorization(accountId: string): OfficialAccount | undefined {
+    const item = this.officialAccounts.find((a) => a.id === accountId);
+    if (!item) return undefined;
+    item.authorizationRequestedAt = nowIso();
     this.changed();
     return item;
   }

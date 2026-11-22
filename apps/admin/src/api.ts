@@ -146,6 +146,7 @@ function mapCase(item: any): ModerationCase {
       alias: post.anonymousAlias,
       text: post.text || '（评论内容）',
       cover: background(post.media?.[0]?.url),
+      media: (post.media || []).map((media: any) => media.url).filter(Boolean),
       topic: post.topic,
       location: post.location,
       createdAt: clock(post.createdAt || item.createdAt)
@@ -181,6 +182,7 @@ function mapOfficial(item: any): OfficialAccount {
     authorizationFileName: item.authorizationFileName,
     authorizationMime: item.authorizationMime,
     authorizationSize: item.authorizationSize,
+    authorizationRequestedAt: item.authorizationRequestedAt,
     expiresAt: item.expiresAt,
     effectiveAt: item.effectiveAt,
     schoolReviewedBy: item.schoolReviewedBy,
@@ -219,6 +221,10 @@ export async function uploadOfficialAuthorization(accountId: string, file: File)
   const form = new FormData();
   form.append('file', file);
   return request(`/admin/official-accounts/${accountId}/authorization`, { method: 'POST', body: form });
+}
+
+export async function requestOfficialAuthorization(accountId: string) {
+  return request(`/admin/official-accounts/${accountId}/request-authorization`, { method: 'POST', body: JSON.stringify({}) });
 }
 
 export async function downloadOfficialAuthorization(accountId: string): Promise<Blob> {

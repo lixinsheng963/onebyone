@@ -8,6 +8,7 @@ import {
   getAdminMe,
   getOfficialAccounts,
   getUsers,
+  requestOfficialAuthorization,
   reviewOfficial,
   updateOfficialAccount,
   uploadOfficialAuthorization
@@ -190,6 +191,10 @@ async function save() {
 }
 
 function triggerUpload(item: OfficialAccount) {
+  if (role.value !== 'platform_admin') {
+    ElMessage.warning('授权文件由平台管理员统一上传');
+    return;
+  }
   uploadTarget.value = item;
   fileInput.value?.click();
 }
@@ -309,6 +314,16 @@ async function approve(item: OfficialAccount) {
   }
 }
 
+async function remindPlatform(item: OfficialAccount) {
+  try {
+    await requestOfficialAuthorization(item.id);
+    item.authorizationRequestedAt = new Date().toISOString();
+    ElMessage.success('已提醒平台管理员补传授权文件');
+  } catch (e) {
+    ElMessage.error((e as Error).message);
+  }
+}
+
 function canSchoolSubmit(item: OfficialAccount) {
   return role.value === 'school_reviewer' && item.status === 'pending_school';
 }
@@ -352,13 +367,21 @@ function canPlatformApprove(item: OfficialAccount) {
               {{ item.authorization }}
               <span v-if="item.expiresAt"> · 有效至 {{ item.expiresAt.slice(0, 10) }}</span>
             </p>
+            <p v-if="item.authorizationRequestedAt" class="auth-reminder">
+              学校已提醒平台补传授权文件 · {{ item.authorizationRequestedAt.slice(0, 16).replace('T', ' ') }}
+            </p>
             <div class="official-actions">
               <template v-if="item.authorizationFileName">
-                <button class="btn btn-outline btn-sm" @click="previewFile(item)">预览授权</button>
+                <button class="btn btn-outline btn-sm" @click="previewFile(item)">查看授权文件</button>
                 <button class="btn btn-outline btn-sm" @click="downloadFile(item)">下载授权</button>
                 <button v-if="role === 'platform_admin'" class="btn btn-ghost btn-sm" @click="triggerUpload(item)">更新授权</button>
               </template>
-              <button v-else class="btn btn-outline btn-sm" @click="triggerUpload(item)">上传授权文件</button>
+              <template v-else>
+                <button v-if="role === 'platform_admin'" class="btn btn-outline btn-sm" @click="triggerUpload(item)">上传授权文件</button>
+                <button v-else-if="role === 'school_reviewer'" class="btn btn-outline btn-sm" :disabled="Boolean(item.authorizationRequestedAt)" @click="remindPlatform(item)">
+                  {{ item.authorizationRequestedAt ? '已提醒平台' : '提醒平台上传授权' }}
+                </button>
+              </template>
               <button v-if="role === 'platform_admin'" class="btn btn-ghost btn-sm" @click="openEdit(item)">编辑</button>
               <button v-if="role === 'platform_admin'" class="btn btn-outline btn-sm" @click="openOperator(item)">绑定运营者</button>
               <button v-if="canSchoolSubmit(item)" class="btn btn-primary btn-sm" @click="submitSchoolReview(item)">提交平台复核</button>
@@ -507,6 +530,7 @@ function canPlatformApprove(item: OfficialAccount) {
 .official-name .org-id { opacity: .75; }
 .scope-row { display: flex; gap: 5px; flex-wrap: wrap; margin: 13px 0 8px; }
 .auth-line { margin: 0 0 12px; color: var(--muted); font-size: 10px; line-height: 1.6; }
+.auth-reminder { margin: -4px 0 10px; padding: 6px 9px; border-radius: 7px; background: #fbf2df; color: #8a5a23; font-size: 10px; }
 .official-actions { display: flex; gap: 7px; flex-wrap: wrap; }
 .form-stack, .official-form { display: flex; flex-direction: column; gap: 14px; }
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }

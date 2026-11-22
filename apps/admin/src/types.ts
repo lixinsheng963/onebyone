@@ -60,6 +60,7 @@ export interface CasePost {
   alias?: string;
   text: string;
   cover: string;
+  media?: string[];
   topic?: string;
   location?: string;
   createdAt: string;
@@ -113,6 +114,7 @@ export interface OfficialAccount {
   authorizationFileName?: string;
   authorizationMime?: string;
   authorizationSize?: number;
+  authorizationRequestedAt?: string;
   expiresAt?: string;
   effectiveAt?: string;
   schoolReviewedBy?: string;

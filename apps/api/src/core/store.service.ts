@@ -1004,7 +1004,7 @@ export class StoreService extends CampusStore implements OnModuleDestroy {
     const [officialRows] = await this.pool.query<any[]>(
       `SELECT oa.id, oa.public_id, oa.user_id, oa.org_name, oa.org_id, oa.school_id,
               oa.authorization_file_key, oa.authorization_file_name, oa.authorization_mime,
-              oa.authorization_size, oa.scope, oa.status, oa.school_reviewed_by,
+              oa.authorization_size, oa.authorization_requested_at, oa.scope, oa.status, oa.school_reviewed_by,
               oa.school_reviewed_at, oa.reviewed_by, oa.platform_reviewed_at,
               oa.effective_at, oa.expires_at, oa.created_at,
               COALESCE(su.display_name, su.email) AS school_reviewer_name,
@@ -1031,6 +1031,7 @@ export class StoreService extends CampusStore implements OnModuleDestroy {
         authorizationFileName: row.authorization_file_name || undefined,
         authorizationMime: row.authorization_mime || undefined,
         authorizationSize: row.authorization_size ? Number(row.authorization_size) : undefined,
+        authorizationRequestedAt: row.authorization_requested_at ? asIso(row.authorization_requested_at) : undefined,
         schoolReviewedBy: row.school_reviewer_name || undefined,
         schoolReviewedById: row.school_reviewed_by ? Number(row.school_reviewed_by) : undefined,
         schoolReviewedAt: row.school_reviewed_at ? asIso(row.school_reviewed_at) : undefined,
@@ -1748,14 +1749,15 @@ export class StoreService extends CampusStore implements OnModuleDestroy {
       if (!userId) continue;
       const [result] = await connection.query<ResultSetHeader>(
         `INSERT INTO official_accounts (public_id, user_id, school_id, org_name, org_id,
-           authorization_file_key, authorization_file_name, authorization_mime, authorization_size,
+           authorization_file_key, authorization_file_name, authorization_mime, authorization_size, authorization_requested_at,
            scope, status, school_reviewed_by, school_reviewed_at, reviewed_by, platform_reviewed_at,
            effective_at, expires_at, last_reviewed_at, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id), user_id = VALUES(user_id), org_name = VALUES(org_name),
            org_id = VALUES(org_id), authorization_file_key = VALUES(authorization_file_key),
            authorization_file_name = VALUES(authorization_file_name), authorization_mime = VALUES(authorization_mime),
-           authorization_size = VALUES(authorization_size), scope = VALUES(scope), status = VALUES(status),
+           authorization_size = VALUES(authorization_size), authorization_requested_at = VALUES(authorization_requested_at),
+           scope = VALUES(scope), status = VALUES(status),
            school_reviewed_by = VALUES(school_reviewed_by), school_reviewed_at = VALUES(school_reviewed_at),
            reviewed_by = VALUES(reviewed_by), platform_reviewed_at = VALUES(platform_reviewed_at),
            effective_at = VALUES(effective_at), expires_at = VALUES(expires_at),
@@ -1770,6 +1772,7 @@ export class StoreService extends CampusStore implements OnModuleDestroy {
           item.authorizationFileName || null,
           item.authorizationMime || null,
           item.authorizationSize || null,
+          asSqlDate(item.authorizationRequestedAt) || null,
           JSON.stringify(item.scope),
           item.status,
           item.schoolReviewedById || null,

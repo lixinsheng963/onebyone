@@ -138,8 +138,12 @@ export class AdminController {
 
   @Get('official-accounts')
   officialAccounts(@Req() req: FastifyRequest) {
-    this.requireAdmin(req, ['platform_admin', 'school_reviewer']);
-    return ok(this.store.getOfficialAccounts());
+    const identity = this.requireAdmin(req, ['platform_admin', 'school_reviewer']);
+    const accounts = this.store.getOfficialAccounts();
+    if (identity.role === 'school_reviewer' && identity.schoolId) {
+      return ok(accounts.filter((item) => item.schoolId === identity.schoolId));
+    }
+    return ok(accounts);
   }
 
   @Post('official-accounts')
@@ -192,13 +196,10 @@ export class AdminController {
 
   @Post('official-accounts/:accountId/authorization')
   async uploadOfficialAuthorization(@Req() req: FastifyRequest, @Param('accountId') accountId: string) {
-    const identity = this.requireAdmin(req, ['platform_admin', 'school_reviewer']);
+    const identity = this.requireAdmin(req, ['platform_admin']);
     assertId(accountId, '官方账号');
     const target = this.store.getOfficialAccount(accountId);
     if (!target) throw new BadRequestException('官方账号不存在');
-    if (identity.role === 'school_reviewer' && identity.orgId && target.orgId && identity.orgId !== target.orgId) {
-      throw new ForbiddenException('只能为本人负责的学校组织上传授权文件');
-    }
     const file = await (req as any).file();
     if (!file) throw new BadRequestException('缺少授权文件');
     try {
@@ -222,10 +223,27 @@ export class AdminController {
       if (message === 'INVALID_AUTH_FILE') throw new BadRequestException('授权文件内容与类型不符');
       const code = (error as NodeJS.ErrnoException).code;
       if (code === 'EACCES' || code === 'EPERM' || code === 'ENOSPC') {
-        throw new ServiceUnavailableException('授权文件存储目录不可写，请联系管理员检查 storage 目录权限');
+        throw new ServiceUnavailableException('授权文件存储目录不可写，请联系管理员检查 data/authorizations 目录权限');
       }
       throw error;
     }
+  }
+
+  @Post('official-accounts/:accountId/request-authorization')
+  async requestOfficialAuthorization(@Req() req: FastifyRequest, @Param('accountId') accountId: string) {
+    const identity = this.requireAdmin(req, ['school_reviewer']);
+    assertId(accountId, '官方账号');
+    const target = this.store.getOfficialAccount(accountId);
+    if (!target) throw new BadRequestException('官方账号不存在');
+    if (identity.schoolId && target.schoolId && identity.schoolId !== target.schoolId) {
+      throw new ForbiddenException('只能提醒本人负责学校的官方账号');
+    }
+    if (target.authorizationFile) throw new BadRequestException('授权文件已上传，无需重复提醒');
+    const before = this.snapshot(target);
+    const result = this.store.requestOfficialAuthorization(accountId);
+    if (!result) throw new BadRequestException('官方账号不存在');
+    await this.audit(req, 'official.authorization.request', 'official_account', accountId, before, result, identity);
+    return ok(result);
   }
 
   @Get('official-accounts/:accountId/authorization')
@@ -238,7 +256,7 @@ export class AdminController {
     assertId(accountId, '官方账号');
     const target = this.store.getOfficialAccount(accountId);
     if (!target) throw new BadRequestException('官方账号不存在');
-    if (identity.role === 'school_reviewer' && identity.orgId && target.orgId && identity.orgId !== target.orgId) {
+    if (identity.role === 'school_reviewer' && identity.schoolId && target.schoolId && identity.schoolId !== target.schoolId) {
       throw new ForbiddenException('无权查看该授权文件');
     }
     try {

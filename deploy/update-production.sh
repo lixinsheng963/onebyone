@@ -60,6 +60,11 @@ pnpm install --frozen-lockfile
 pnpm --filter @campus/api build
 pnpm --filter @campus/admin build
 
+echo "==> 发布最新管理端静态文件"
+rm -rf /var/www/campus/admin/*
+cp -a "$APP_DIR/apps/admin/dist/." /var/www/campus/admin/
+chmod -R a+rX /var/www/campus/admin
+
 if [ "$CLEAN_DEMO" = "1" ]; then
   echo "==> 停止 API，避免旧内存快照把演示数据写回"
   systemctl stop campus-api

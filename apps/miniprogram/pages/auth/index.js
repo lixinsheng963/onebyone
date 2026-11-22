@@ -112,6 +112,10 @@ Page({
     this.setData({ step: 'school', error: '' });
   },
 
+  skipSchool() {
+    wx.switchTab({ url: '/pages/home/index' });
+  },
+
   chooseSchool() {
     wx.showActionSheet({
       itemList: [config.schoolName],

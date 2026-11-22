@@ -84,6 +84,7 @@
     <view wx:if="{{error}}" class="form-error">{{error}}</view>
 
     <button class="btn-primary" bindtap="chooseSchool">选择湖南人文科技学院</button>
+    <view class="form-link" bindtap="skipSchool">暂不选择，先浏览 ›</view>
     <view class="form-note">选择后不可更改。若选错，请联系管理员处理。</view>
   </view>
 

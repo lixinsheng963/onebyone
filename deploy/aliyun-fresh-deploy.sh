@@ -100,8 +100,14 @@ pnpm --version
 log "申请 HTTPS 证书（Let's Encrypt / acme.sh）"
 mkdir -p "$CERT_DIR"
 if [[ ! -s "$CERT_FULLCHAIN" || ! -s "$CERT_KEY" ]]; then
-  curl -fsSL https://get.acme.sh | sh -s email="$ACME_EMAIL"
-  ACME="/root/.acme.sh/acme.sh"
+  ACME="/usr/local/bin/acme.sh"
+  if ! curl -fsSL --max-time 120 https://gitee.com/neilpang/acme.sh/raw/master/acme.sh -o "$ACME"; then
+    echo "Gitee 镜像不可用，尝试 acme.sh 官方安装器..." >&2
+    curl -fsSL https://get.acme.sh | sh -s email="$ACME_EMAIL"
+    ACME="/root/.acme.sh/acme.sh"
+  fi
+  chmod +x "$ACME" 2>/dev/null || true
+  [[ -x "$ACME" ]] || die "acme.sh 下载失败，请改用宝塔面板申请证书后传入 CERT_FULLCHAIN/CERT_KEY。"
   "$ACME" --set-default-ca --server letsencrypt >/dev/null
   "$ACME" --issue -d "$DOMAIN" --standalone --keylength ec-256 \
     --pre-hook "systemctl stop nginx 2>/dev/null || true" \

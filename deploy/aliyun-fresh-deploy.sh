@@ -108,13 +108,15 @@ if [[ ! -s "$CERT_FULLCHAIN" || ! -s "$CERT_KEY" ]]; then
   fi
   chmod +x "$ACME" 2>/dev/null || true
   [[ -x "$ACME" ]] || die "acme.sh 下载失败，请改用宝塔面板申请证书后传入 CERT_FULLCHAIN/CERT_KEY。"
-  "$ACME" --set-default-ca --server letsencrypt >/dev/null
-  "$ACME" --issue -d "$DOMAIN" --standalone --keylength ec-256 \
+  ACME_HOME="/root/.acme.sh"
+  mkdir -p "$ACME_HOME"
+  "$ACME" --home "$ACME_HOME" --set-default-ca --server letsencrypt >/dev/null
+  "$ACME" --home "$ACME_HOME" --issue --server letsencrypt -d "$DOMAIN" --standalone --keylength ec-256 \
     --accountemail "$ACME_EMAIL" \
     --pre-hook "systemctl stop nginx 2>/dev/null || true" \
     --post-hook "systemctl start nginx 2>/dev/null || true" \
     --force
-  "$ACME" --install-cert -d "$DOMAIN" --ecc \
+  "$ACME" --home "$ACME_HOME" --install-cert --server letsencrypt -d "$DOMAIN" --ecc \
     --key-file "$CERT_KEY" \
     --fullchain-file "$CERT_FULLCHAIN" \
     --reloadcmd "systemctl reload nginx 2>/dev/null || true"

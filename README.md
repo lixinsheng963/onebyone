@@ -73,7 +73,7 @@ node tools/check-wxml.mjs
 全新 Alibaba Cloud Linux 4、已备案域名（A 记录指向 ECS）、安全组已放行 80/443 时，可直接在服务器 root 终端执行：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/lixinsheng963/onebyone/main/deploy/aliyun-fresh-deploy.sh -o /tmp/campus-deploy.sh
+curl -fsSL https://cdn.jsdelivr.net/gh/lixinsheng963/onebyone@main/deploy/aliyun-fresh-deploy.sh -o /tmp/campus-deploy.sh
 sudo DOMAIN=agideepseek.vip ACME_EMAIL=2576264825@qq.com \
   WX_APPID=wx... WX_SECRET=... \
   bash /tmp/campus-deploy.sh

@@ -7,7 +7,7 @@
 
 ```bash
 # 在 ECS 的 root 终端执行（域名 A 记录必须已指向本机，安全组已放行 80/443）
-curl -fsSL https://raw.githubusercontent.com/lixinsheng963/onebyone/main/deploy/aliyun-fresh-deploy.sh -o /tmp/campus-deploy.sh
+curl -fsSL https://cdn.jsdelivr.net/gh/lixinsheng963/onebyone@main/deploy/aliyun-fresh-deploy.sh -o /tmp/campus-deploy.sh
 sudo DOMAIN=agideepseek.vip ACME_EMAIL=2576264825@qq.com \
   WX_APPID=你的AppID WX_SECRET=你的AppSecret \
   bash /tmp/campus-deploy.sh

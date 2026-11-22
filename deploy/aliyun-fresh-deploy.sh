@@ -121,7 +121,14 @@ if [[ -d "$APP_DIR/.git" ]]; then
   git -C "$APP_DIR" reset --hard origin/main
 else
   mkdir -p "$APP_DIR"
-  git clone --depth 1 "$REPO_URL" "$APP_DIR"
+  if ! git clone --depth 1 "$REPO_URL" "$APP_DIR"; then
+    echo "GitHub clone 失败，改用 codeload 源码包..." >&2
+    rm -rf "$APP_DIR"
+    mkdir -p "$APP_DIR"
+    curl -fsSL "https://codeload.github.com/lixinsheng963/onebyone/tar.gz/refs/heads/main" -o /tmp/campus-main.tar.gz
+    tar -xzf /tmp/campus-main.tar.gz --strip-components=1 -C "$APP_DIR"
+    rm -f /tmp/campus-main.tar.gz
+  fi
 fi
 cd "$APP_DIR"
 pnpm install --frozen-lockfile

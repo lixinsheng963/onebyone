@@ -110,6 +110,7 @@ if [[ ! -s "$CERT_FULLCHAIN" || ! -s "$CERT_KEY" ]]; then
   [[ -x "$ACME" ]] || die "acme.sh 下载失败，请改用宝塔面板申请证书后传入 CERT_FULLCHAIN/CERT_KEY。"
   "$ACME" --set-default-ca --server letsencrypt >/dev/null
   "$ACME" --issue -d "$DOMAIN" --standalone --keylength ec-256 \
+    --accountemail "$ACME_EMAIL" \
     --pre-hook "systemctl stop nginx 2>/dev/null || true" \
     --post-hook "systemctl start nginx 2>/dev/null || true" \
     --force

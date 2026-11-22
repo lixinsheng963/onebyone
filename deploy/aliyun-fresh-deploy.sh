@@ -58,16 +58,36 @@ if [[ -z "$PUBLIC_IP" || -z "$DNS_IPS" || "$DNS_IPS" != *"$PUBLIC_IP"* ]]; then
 fi
 
 log "安装基础软件"
-dnf install -y curl ca-certificates git tar openssl socat nginx mysql-server redis >/dev/null
+dnf install -y curl ca-certificates git tar xz openssl socat nginx mysql-server redis >/dev/null
 systemctl stop nginx 2>/dev/null || true
 systemctl disable nginx 2>/dev/null || true
 systemctl enable --now mysqld 2>/dev/null || systemctl enable --now mysql
 systemctl enable --now redis
 
-if ! command -v node >/dev/null 2>&1 || [[ "$(node -p 'process.versions.node.split(".")[0]')" -lt 20 ]]; then
-  curl -fsSL https://rpm.nodesource.com/setup_20.x | bash -
-  dnf install -y nodejs >/dev/null
+if ! command -v node >/dev/null 2>&1 || [[ "$(node -p 'process.versions.node.split(".")[0]' 2>/dev/null || echo 0)" -lt 20 ]]; then
+  dnf install -y nodejs >/dev/null 2>&1 || true
 fi
+if ! command -v node >/dev/null 2>&1 || [[ "$(node -p 'process.versions.node.split(".")[0]' 2>/dev/null || echo 0)" -lt 20 ]]; then
+  NODE_VERSION="v20.18.0"
+  case "$(uname -m)" in
+    x86_64|amd64) NODE_ARCH="x64" ;;
+    aarch64|arm64) NODE_ARCH="arm64" ;;
+    *) die "不支持的 CPU 架构: $(uname -m)" ;;
+  esac
+  NODE_TARBALL="node-${NODE_VERSION}-linux-${NODE_ARCH}.tar.xz"
+  NODE_BASE="https://nodejs.org/dist/${NODE_VERSION}"
+  if ! curl -fsSL --max-time 120 "${NODE_BASE}/${NODE_TARBALL}" -o "/tmp/${NODE_TARBALL}"; then
+    curl -fsSL --max-time 120 "https://npmmirror.com/mirrors/node/${NODE_VERSION}/${NODE_TARBALL}" -o "/tmp/${NODE_TARBALL}"
+  fi
+  mkdir -p /usr/local/lib/nodejs
+  tar -xJf "/tmp/${NODE_TARBALL}" -C /usr/local/lib/nodejs
+  ln -sf "/usr/local/lib/nodejs/node-${NODE_VERSION}-linux-${NODE_ARCH}/bin/node" /usr/local/bin/node
+  ln -sf "/usr/local/lib/nodejs/node-${NODE_VERSION}-linux-${NODE_ARCH}/bin/npm" /usr/local/bin/npm
+  ln -sf "/usr/local/lib/nodejs/node-${NODE_VERSION}-linux-${NODE_ARCH}/bin/npx" /usr/local/bin/npx
+  export PATH="/usr/local/bin:${PATH}"
+  hash -r
+fi
+node -v
 corepack enable
 corepack prepare pnpm@11.28.5 --activate
 

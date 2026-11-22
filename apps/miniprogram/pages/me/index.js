@@ -1,4 +1,5 @@
 const api = require('../../utils/api');
+const config = require('../../utils/config');
 const { initial } = require('../../utils/format');
 
 Page({
@@ -41,6 +42,27 @@ Page({
 
   goAuth() {
     wx.navigateTo({ url: '/pages/auth/index' });
+  },
+
+  chooseSchool() {
+    const user = this.data.user;
+    if (!user) return this.goAuth();
+    if (user.school) {
+      wx.showToast({ title: '学校已选择，不能修改', icon: 'none' });
+      return;
+    }
+    wx.showActionSheet({
+      itemList: [config.schoolName],
+      success: async () => {
+        try {
+          const updated = await api.updateProfile({ school: config.schoolName });
+          this.setData({ user: updated, userInitial: initial(updated.nickname) });
+          wx.showToast({ title: '学校已选择', icon: 'success' });
+        } catch (error) {
+          wx.showToast({ title: error.message || '选择失败', icon: 'none' });
+        }
+      }
+    });
   },
 
   goList(e) {

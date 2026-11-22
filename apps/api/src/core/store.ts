@@ -23,6 +23,10 @@ import type {
   User
 } from '../types';
 import { comments as seedComments, moderationCases as seedCases, notices as seedNotices, notifications as seedNotifications, posts as seedPosts, reports as seedReports, topics as seedTopics, users as seedUsers } from '../data/seed';
+
+export const ALLOWED_SCHOOL = '湖南人文科技学院';
+const NICKNAME_PREFIXES = ['同学', '校园', '青禾', '南风', '星野', '小鹿', '拾光', '木棉'];
+const NICKNAME_SUFFIX = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 import { computeHeat } from './heat';
 import { mergeModeration, moderateText, type ModerationResult } from './moderation';
 
@@ -124,6 +128,10 @@ export class CampusStore {
   private changeHook?: () => void;
 
   constructor() {
+    // Seed/snapshot accounts predate the invite-onboarding flow and stay usable.
+    for (const user of this.users) {
+      if (!user.admittedAt) user.admittedAt = user.createdAt;
+    }
     this.recomputeHeat();
   }
 
@@ -287,7 +295,7 @@ export class CampusStore {
         id: userId,
         publicId: userId,
         openid,
-        nickname: '校园同学',
+        nickname: this.uniqueNickname(),
         avatar: '',
         role: 'student',
         level: 'L1',
@@ -304,12 +312,20 @@ export class CampusStore {
     return { token, user };
   }
 
-  async redeemInvite(code: string, token?: string): Promise<{ ok: boolean; message: string; user?: User }> {
+  async checkInvite(code: string): Promise<{ ok: boolean; message: string }> {
     const expected = process.env.INVITE_CODE || (process.env.NODE_ENV === 'production' ? '' : 'CAMPUS');
     if (!expected || !this.safeEqual(code.trim().toUpperCase(), expected.toUpperCase())) {
       return { ok: false, message: '邀请码无效或已使用' };
     }
+    return { ok: true, message: '邀请码有效' };
+  }
+
+  async redeemInvite(code: string, token?: string): Promise<{ ok: boolean; message: string; user?: User }> {
+    const checked = await this.checkInvite(code);
+    if (!checked.ok) return { ok: false, message: checked.message };
     const user = this.getUserByToken(token) || this.users.find((u) => u.id === 'u_me')!;
+    if (!user) return { ok: false, message: '请先登录' };
+    if (!user.admittedAt) user.admittedAt = nowIso();
     this.changed();
     return { ok: true, message: '认证成功', user };
   }
@@ -340,6 +356,21 @@ export class CampusStore {
     }
     const userId = this.sessions.get(sessionKey);
     return userId ? this.users.find((u) => u.id === userId) : undefined;
+  }
+
+  private uniqueNickname(): string {
+    for (let attempt = 0; attempt < 50; attempt += 1) {
+      const prefix = NICKNAME_PREFIXES[Math.floor(Math.random() * NICKNAME_PREFIXES.length)];
+      const suffix = Array.from({ length: 4 }, () => NICKNAME_SUFFIX[Math.floor(Math.random() * NICKNAME_SUFFIX.length)]).join('');
+      const candidate = `${prefix}${suffix}`;
+      if (!this.users.some((item) => item.nickname === candidate)) return candidate;
+    }
+    return `校园${Date.now().toString(36).slice(-4).toUpperCase()}`;
+  }
+
+  private assertUserReady(user: User): void {
+    if (!user.admittedAt) throw new Error('INVITE_REQUIRED');
+    if (!user.school) throw new Error('SCHOOL_REQUIRED');
   }
 
   private assertAccountUsable(user: User): void {
@@ -444,9 +475,19 @@ export class CampusStore {
     return this.getUserByToken(token);
   }
 
-  updateMyProfile(token: string | undefined, patch: { nickname?: string; avatar?: string }): User {
+  updateMyProfile(token: string | undefined, patch: { nickname?: string; avatar?: string; school?: string }): User {
     const user = this.getUserByToken(token);
     if (!user) throw new Error('AUTH_REQUIRED');
+    if (!user.admittedAt) throw new Error('INVITE_REQUIRED');
+    if (patch.school !== undefined) {
+      const school = patch.school.trim();
+      if (school !== ALLOWED_SCHOOL) throw new Error('SCHOOL_INVALID');
+      if (user.school && user.school !== school) throw new Error('SCHOOL_LOCKED');
+      if (!user.school) {
+        user.school = school;
+        user.schoolSelectedAt = nowIso();
+      }
+    }
     if (patch.nickname !== undefined) {
       const nickname = patch.nickname.trim();
       if (nickname.length < 1 || nickname.length > 16) throw new Error('NICKNAME_INVALID');
@@ -518,6 +559,7 @@ export class CampusStore {
     const user = this.getUserByToken(token);
     if (!user) throw new Error('AUTH_REQUIRED');
     this.assertAccountUsable(user);
+    this.assertUserReady(user);
     const rawText = String(input.text || '');
     const ruleModeration = moderateText(rawText);
     const moderation = aiModeration ? mergeModeration(ruleModeration, aiModeration) : ruleModeration;
@@ -588,6 +630,7 @@ export class CampusStore {
     const user = this.getUserByToken(token);
     if (!user) throw new Error('AUTH_REQUIRED');
     this.assertAccountUsable(user);
+    this.assertUserReady(user);
     const post = this.posts.find((p) => p.id === postId);
     if (!post || post.status !== 'published') throw new Error('NOT_FOUND');
     if (!post.commentsEnabled) throw new Error('COMMENTS_CLOSED');
@@ -640,6 +683,7 @@ export class CampusStore {
     const user = this.getUserByToken(token);
     if (!user) throw new Error('AUTH_REQUIRED');
     this.assertAccountUsable(user);
+    this.assertUserReady(user);
     const post = this.findPost(postId);
     if (post.status !== 'published') throw new Error('NOT_FOUND');
     const current = post.likedBy.has(user.id);
@@ -658,6 +702,7 @@ export class CampusStore {
     const user = this.getUserByToken(token);
     if (!user) throw new Error('AUTH_REQUIRED');
     this.assertAccountUsable(user);
+    this.assertUserReady(user);
     const post = this.findPost(postId);
     if (post.status !== 'published') throw new Error('NOT_FOUND');
     const current = post.favoritedBy.has(user.id);
@@ -725,6 +770,7 @@ export class CampusStore {
     const user = this.getUserByToken(token);
     if (!user) throw new Error('AUTH_REQUIRED');
     this.assertAccountUsable(user);
+    this.assertUserReady(user);
     const targetExists = input.targetType === 'post'
       ? this.posts.some((post) => post.id === input.targetId)
       : input.targetType === 'comment'
@@ -1390,6 +1436,8 @@ export class CampusStore {
   ): Appeal {
     const user = this.getUserByToken(token);
     if (!user) throw new Error('AUTH_REQUIRED');
+    this.assertAccountUsable(user);
+    this.assertUserReady(user);
     let targetId = input.targetId;
     if (input.targetType === 'post') {
       const post = this.posts.find((item) => item.id === targetId);

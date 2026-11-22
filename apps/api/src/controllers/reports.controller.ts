@@ -52,6 +52,8 @@ export class ReportsController {
       if (message === 'ACCOUNT_DISABLED') throw new ForbiddenException('账号已被停用');
       if (message === 'AUTH_REQUIRED') throw new UnauthorizedException('请先登录');
       if (message === 'NOT_FOUND') throw new BadRequestException('举报对象不存在');
+      if (message === 'INVITE_REQUIRED') throw new ForbiddenException('请先完成邀请码认证');
+      if (message === 'SCHOOL_REQUIRED') throw new ForbiddenException('请到“我的”页面选择学校');
       throw error;
     }
   }
@@ -72,6 +74,10 @@ export class ReportsController {
       if (message === 'FORBIDDEN') throw new ForbiddenException('只能申诉自己的内容');
       if (message === 'NOT_APPEALABLE') throw new BadRequestException('该内容当前不可申诉');
       if (message === 'APPEAL_DUPLICATE') throw new BadRequestException('该内容已有待处理申诉');
+      if (message === 'ACCOUNT_MUTED') throw new ForbiddenException('账号已被禁言，暂时无法申诉');
+      if (message === 'ACCOUNT_DISABLED') throw new ForbiddenException('账号已被停用');
+      if (message === 'INVITE_REQUIRED') throw new ForbiddenException('请先完成邀请码认证');
+      if (message === 'SCHOOL_REQUIRED') throw new ForbiddenException('请到“我的”页面选择学校');
       throw error;
     }
   }

@@ -1,41 +1,14 @@
 <view class="auth-page">
   <view class="auth-glow"></view>
 
-  <view wx:if="{{step === 'welcome'}}" class="auth-wrap">
+  <view wx:if="{{step === 'invite'}}" class="auth-wrap auth-form-wrap">
     <view class="stamp">
       <text class="stamp-year">CAMPUS</text>
       <text class="stamp-day">日常</text>
     </view>
-    <view class="auth-kicker">ONLY FOR THIS CAMPUS</view>
-    <view class="auth-title serif">只记录我们学校<br />今天发生的小事。</view>
-    <view class="auth-desc">不追热点，不做万能平台。这里只有同校人看得懂的日常。</view>
-
-    <view class="feature-list">
-      <view class="feature">
-        <text class="feature-no">01</text>
-        <view><text class="feature-title">低压力分享</text><text class="feature-desc">匿名只对其他同学匿名，平台可追溯。</text></view>
-      </view>
-      <view class="feature">
-        <text class="feature-no">02</text>
-        <view><text class="feature-title">只属于本校</text><text class="feature-desc">邀请码 + 现场认证，减少冒充和广告。</text></view>
-      </view>
-      <view class="feature">
-        <text class="feature-no">03</text>
-        <view><text class="feature-title">有边界的表达</text><text class="feature-desc">不挂人、不曝光隐私；审核和申诉都在。</text></view>
-      </view>
-    </view>
-
-    <button class="btn-primary auth-login" bindtap="onLogin" loading="{{logging}}">微信一键登录</button>
-    <view class="auth-note">登录后将使用微信昵称和头像，也可以进入“设置 → 编辑资料”修改。</view>
-    <view class="auth-note">浏览不需要登录；登录后可点赞、收藏、评论。</view>
-    <view class="auth-legal">登录即同意《用户协议》和《隐私政策》</view>
-  </view>
-
-  <view wx:elif="{{step === 'code'}}" class="auth-wrap auth-form-wrap">
-    <view class="back-link" bindtap="back">‹ 返回</view>
-    <view class="form-kicker">INVITE CODE</view>
-    <view class="form-title serif">输入邀请码</view>
-    <view class="form-sub">请使用管理员发放的邀请码；可用次数和有效期以发放记录为准。</view>
+    <view class="form-kicker">INVITE ONLY</view>
+    <view class="form-title serif">先验证邀请码</view>
+    <view class="form-sub">这里只对湖南人文科技学院的同学开放。请先输入管理员发放的邀请码，再完成微信登录。</view>
 
     <view class="code-box">
       <input
@@ -49,8 +22,9 @@
     </view>
     <view wx:if="{{error}}" class="form-error">{{error}}</view>
 
-    <button class="btn-primary" bindtap="redeem" loading="{{redeeming}}">验证并认证</button>
-    <view class="form-link" bindtap="goOnsite">没有邀请码？去现场认证 ›</view>
+    <button class="btn-primary" bindtap="verifyCode" loading="{{redeeming}}">验证邀请码并登录</button>
+    <view class="form-note">验证成功后，你可以授权微信头像和昵称；也可以拒绝授权，使用系统随机昵称和默认头像。</view>
+    <view class="form-link" bindtap="goOnsite">有现场认证码？去现场认证 ›</view>
   </view>
 
   <view wx:elif="{{step === 'onsite'}}" class="auth-wrap auth-form-wrap">
@@ -63,7 +37,7 @@
       <input
         class="code-input"
         value="{{onsiteCode}}"
-        maxlength="8"
+        maxlength="32"
         placeholder="输入现场码"
         bindinput="onOnsiteCode"
         focus
@@ -71,21 +45,59 @@
     </view>
     <view wx:if="{{error}}" class="form-error">{{error}}</view>
 
-    <button class="btn-primary" bindtap="submitOnsite">完成现场认证</button>
-    <view class="form-note">现场码同样为管理员发放的一次性邀请码，请向工作人员索取。</view>
+    <button class="btn-primary" bindtap="submitOnsite" loading="{{redeeming}}">完成现场认证</button>
+    <view class="form-note">现场码同样为管理员发放的邀请码，请向工作人员索取。</view>
+  </view>
+
+  <view wx:elif="{{step === 'profile'}}" class="auth-wrap auth-form-wrap">
+    <view class="form-kicker">YOUR PROFILE</view>
+    <view class="form-title serif">要使用微信资料吗？</view>
+    <view class="form-sub">授权后展示你的微信头像和昵称。拒绝授权也没关系，系统会给你一个随机昵称和默认头像，之后可以在“设置 → 编辑资料”修改。</view>
+
+    <view class="done-card">
+      <image wx:if="{{user.avatar}}" class="done-avatar" src="{{user.avatar}}" mode="aspectFill" />
+      <view wx:else class="done-avatar">{{userInitial}}</view>
+      <view>
+        <text class="done-name">{{user.nickname || '校园同学'}}</text>
+        <text>当前为默认资料</text>
+      </view>
+    </view>
+    <view wx:if="{{error}}" class="form-error">{{error}}</view>
+
+    <button class="btn-primary" bindtap="authorizeProfile" loading="{{savingProfile}}">授权微信头像和昵称</button>
+    <view class="form-link" bindtap="skipProfile">暂不授权，使用默认资料 ›</view>
+  </view>
+
+  <view wx:elif="{{step === 'school'}}" class="auth-wrap auth-form-wrap">
+    <view class="form-kicker">CHOOSE CAMPUS</view>
+    <view class="form-title serif">选择你的学校</view>
+    <view class="form-sub">现阶段仅支持湖南人文科技学院。学校选择后不可修改，请确认后再提交。</view>
+
+    <view class="done-card">
+      <image wx:if="{{user.avatar}}" class="done-avatar" src="{{user.avatar}}" mode="aspectFill" />
+      <view wx:else class="done-avatar">{{userInitial}}</view>
+      <view>
+        <text class="done-name">{{user.nickname || '校园同学'}}</text>
+        <text>未选择学校时只能浏览，不能发布、评论、点赞或收藏。</text>
+      </view>
+    </view>
+    <view wx:if="{{error}}" class="form-error">{{error}}</view>
+
+    <button class="btn-primary" bindtap="chooseSchool">选择湖南人文科技学院</button>
+    <view class="form-note">选择后不可更改。若选错，请联系管理员处理。</view>
   </view>
 
   <view wx:else class="auth-wrap done-wrap">
     <view class="done-mark">✓</view>
-    <view class="form-kicker">VERIFIED</view>
-    <view class="form-title serif">认证成功</view>
+    <view class="form-kicker">WELCOME</view>
+    <view class="form-title serif">认证完成</view>
     <view class="form-sub">现在可以发布、评论和点赞。请先读一遍社区公约，再开始分享。</view>
     <view class="done-card">
       <image wx:if="{{user.avatar}}" class="done-avatar" src="{{user.avatar}}" mode="aspectFill" />
       <view wx:else class="done-avatar">{{userInitial}}</view>
       <view>
         <text class="done-name">{{user.nickname || '本校同学'}}</text>
-        <text>L2 校园认证 · {{user.school || '示例大学'}}</text>
+        <text>{{user.school || schoolName}}</text>
       </view>
       <view class="done-badge">已认证</view>
     </view>

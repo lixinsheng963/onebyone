@@ -9,7 +9,8 @@ const user = {
   level: 'L2',
   verified: true,
   isOfficial: false,
-  school: '示例大学',
+  school: '湖南人文科技学院',
+  admittedAt: '2026-09-01T00:00:00.000Z',
   bio: '把今天的小事记下来'
 };
 
@@ -429,8 +430,15 @@ function getUser() {
   return wx.getStorageSync('campus_user') || null;
 }
 
-function redeem(code) {
+function checkInvite(code) {
   if (String(code).trim().toUpperCase() !== 'CAMPUS') {
+    return { ok: false, message: '邀请码无效或已使用' };
+  }
+  return { ok: true, message: '邀请码有效' };
+}
+
+function redeem(code) {
+  if (!checkInvite(code).ok) {
     return { ok: false, message: '邀请码无效或已使用' };
   }
   wx.setStorageSync('campus_user', user);
@@ -520,6 +528,7 @@ module.exports = {
   login,
   logout,
   getUser,
+  checkInvite,
   redeem,
   getNotifications,
   markRead,

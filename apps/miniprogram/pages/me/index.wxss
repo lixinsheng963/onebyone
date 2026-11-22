@@ -67,6 +67,15 @@
   font-size: 21rpx;
   line-height: 1.5;
 }
+.school-unset {
+  color: #a64b3c;
+  font-weight: 600;
+}
+.school-arrow {
+  margin-left: 4rpx;
+  color: #a64b3c;
+  font-weight: 600;
+}
 
 .stats-card {
   display: flex;

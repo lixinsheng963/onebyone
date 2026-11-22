@@ -1,6 +1,6 @@
 {
   "name": "@campus/admin",
-  "version": "0.3.0-rc.12",
+  "version": "0.3.0-rc.13",
   "private": true,
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 5173",

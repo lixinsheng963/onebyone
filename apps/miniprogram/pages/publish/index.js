@@ -27,6 +27,23 @@ Page({
     draftSaved: false
   },
 
+  onShow() {
+    const user = api.getUser();
+    if (!user || !user.admittedAt) {
+      wx.reLaunch({ url: '/pages/auth/index' });
+      return;
+    }
+    if (!user.school) {
+      wx.showModal({
+        title: '请先选择学校',
+        content: '请到“我的”页面选择学校后再发布内容。',
+        showCancel: false,
+        confirmText: '去选择',
+        success: () => wx.switchTab({ url: '/pages/me/index' })
+      });
+    }
+  },
+
   onLoad() {
     const savedTopics = wx.getStorageSync('campus_custom_topics');
     const savedDeleted = wx.getStorageSync('campus_deleted_topics');

@@ -70,14 +70,13 @@
       <text class="arrow">›</text>
     </view>
     <view class="row">
-      <view><text class="row-title">版本</text><text>v0.3.0-rc.12 · 单校版</text></view>
+      <view><text class="row-title">版本</text><text>v0.3.0-rc.13 · 单校版</text></view>
       <text class="version">CAMPUS</text>
     </view>
   </view>
 
   <view wx:if="{{user}}" class="danger-zone">
     <button class="logout-btn" bindtap="logout">退出登录</button>
-    <button class="delete-btn" bindtap="deleteAccount">注销账号</button>
   </view>
 
   <view class="settings-foot">校园日常 · 只记录这一所学校今天的小事</view>

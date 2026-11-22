@@ -25,6 +25,15 @@ if [[ "${EUID}" -ne 0 ]]; then
   exit 1
 fi
 
+if [[ -z "${WX_APPID:-}" ]]; then
+  read -r -p "微信小程序 AppID（测试号或正式号）： " WX_APPID
+fi
+if [[ -z "${WX_SECRET:-}" ]]; then
+  read -r -s -p "微信小程序 AppSecret： " WX_SECRET
+  echo
+fi
+[[ -n "$WX_APPID" && -n "$WX_SECRET" ]] || { echo "必须提供微信 AppID/Secret。" >&2; exit 1; }
+
 log() { printf '\n==> %s\n' "$*"; }
 die() { printf '\nERROR: %s\n' "$*" >&2; exit 1; }
 
@@ -147,15 +156,6 @@ rm -rf /var/www/campus/admin/*
 cp -r "$APP_DIR/apps/admin/dist"/* /var/www/campus/admin/
 chown -R campus:campus "$APP_DIR" "$API_DIR/uploads" "$API_DIR/data"
 chmod 755 /var/www/campus/admin
-
-if [[ -z "${WX_APPID:-}" ]]; then
-  read -r -p "微信小程序 AppID（测试号或正式号）： " WX_APPID
-fi
-if [[ -z "${WX_SECRET:-}" ]]; then
-  read -r -s -p "微信小程序 AppSecret： " WX_SECRET
-  echo
-fi
-[[ -n "$WX_APPID" && -n "$WX_SECRET" ]] || die "必须提供微信 AppID/Secret。"
 
 TOTP_SECRET="$(cd "$API_DIR" && node -e "console.log(require('otplib').generateSecret())")"
 [[ -n "$TOTP_SECRET" ]] || die "生成 TOTP secret 失败。"

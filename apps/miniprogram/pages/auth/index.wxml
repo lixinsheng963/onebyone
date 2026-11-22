@@ -51,20 +51,30 @@
 
   <view wx:elif="{{step === 'profile'}}" class="auth-wrap auth-form-wrap">
     <view class="form-kicker">YOUR PROFILE</view>
-    <view class="form-title serif">要使用微信资料吗？</view>
-    <view class="form-sub">授权后展示你的微信头像和昵称。拒绝授权也没关系，系统会给你一个随机昵称和默认头像，之后可以在“设置 → 编辑资料”修改。</view>
+    <view class="form-title serif">使用微信头像和昵称</view>
+    <view class="form-sub">点击头像选择你的微信头像，点击昵称会优先带出微信昵称。也可以手动输入；暂不设置时，系统会给你一个随机昵称和默认头像，之后可在“设置 → 编辑资料”修改。</view>
 
-    <view class="done-card">
-      <image wx:if="{{user.avatar}}" class="done-avatar" src="{{user.avatar}}" mode="aspectFill" />
-      <view wx:else class="done-avatar">{{userInitial}}</view>
-      <view>
-        <text class="done-name">{{user.nickname || '校园同学'}}</text>
-        <text>当前为默认资料</text>
+    <view class="profile-editor">
+      <button class="avatar-choice" open-type="chooseAvatar" bindchooseavatar="onChooseAvatar">
+        <image wx:if="{{profileAvatar || user.avatar}}" class="profile-avatar" src="{{profileAvatar || user.avatar}}" mode="aspectFill" />
+        <view wx:else class="profile-avatar profile-avatar-empty">{{userInitial}}</view>
+        <text class="avatar-choice-label">点击选择微信头像</text>
+      </button>
+      <view class="nickname-field">
+        <text class="nickname-label">微信昵称</text>
+        <input
+          class="nickname-input"
+          type="nickname"
+          value="{{profileNickname}}"
+          maxlength="16"
+          placeholder="点击使用微信昵称，或手动输入"
+          bindinput="onNicknameInput"
+        />
       </view>
     </view>
     <view wx:if="{{error}}" class="form-error">{{error}}</view>
 
-    <button class="btn-primary" bindtap="authorizeProfile" loading="{{savingProfile}}">授权微信头像和昵称</button>
+    <button class="btn-primary" bindtap="saveProfile" loading="{{savingProfile}}">保存资料，继续</button>
     <view class="form-link" bindtap="skipProfile">暂不授权，使用默认资料 ›</view>
   </view>
 

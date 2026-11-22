@@ -263,18 +263,19 @@ function pinPost(id, pinned) {
   return request(`/posts/${id}/pin`, pinned === false ? 'DELETE' : 'POST');
 }
 
-function uploadMedia(filePath) {
+function uploadMedia(filePath, options) {
+  const purpose = options && options.purpose ? `?purpose=${encodeURIComponent(options.purpose)}` : '';
   if (!config.useRemote) {
     return Promise.resolve({ id: `local_${Date.now()}`, url: filePath, width: 1000, height: 750 });
   }
   const currentUser = wx.getStorageSync('campus_user');
-  if (currentUser && !currentUser.school) {
+  if (currentUser && !currentUser.school && !(options && options.purpose === 'avatar')) {
     showSchoolRequired();
     return Promise.reject(new Error('请先选择学校'));
   }
   return new Promise((resolve, reject) => {
     wx.uploadFile({
-      url: `${config.baseUrl}/media`,
+      url: `${config.baseUrl}/media${purpose}`,
       filePath,
       name: 'file',
       header: { 'x-user-token': token() },

@@ -1,5 +1,16 @@
 # 更新记录 / Changelog
 
+## v0.3.0-rc.14 — 2026-11-22
+
+### 完善
+- 认证页改用微信官方 `chooseAvatar` 头像选择与 `type="nickname"` 昵称输入；头像先上传到私有对象存储，再保存用户资料，不再依赖已弱化的 `wx.getUserProfile` 默认返回值。
+- 新增 `apps/api/scripts/clean-demo-content.mjs` 与 `deploy/update-production.sh`：可安全删除项目初始演示用户/帖子/官方账号/通知，并保留真实用户、数据库、`.env` 与上传文件。
+- 提高生产更新可重复执行性，更新前自动备份 `.env` 与 MySQL。
+
+### 验证
+- API/admin 构建、`pnpm check:mini`、WXML 16 文件、security smoke、e2e-admin/e2e-mysql/e2e-invite 通过。
+- 实测未选学校时 `purpose=avatar` 头像上传 201，普通媒体上传仍 403；头像保存后 `PUT /me` 200，用户资料恢复测试通过。
+
 ## v0.3.0-rc.13 — 2026-11-22
 
 ### 完善

@@ -18,7 +18,8 @@ export class MediaController {
     const user = this.store.getUserByToken(tokenFrom(req));
     if (!user) throw new UnauthorizedException('请先登录');
     if (!user.admittedAt) throw new ForbiddenException('请先完成邀请码认证');
-    if (!user.school) throw new ForbiddenException('请到“我的”页面选择学校');
+    const purpose = String((req.query as any)?.purpose || '');
+    if (!user.school && purpose !== 'avatar') throw new ForbiddenException('请到“我的”页面选择学校');
     const file = await (req as any).file();
     if (!file) throw new BadRequestException('缺少图片文件');
     try {

@@ -12,6 +12,9 @@ Page({
     logging: false,
     redeeming: false,
     savingProfile: false,
+    profileAvatar: '',
+    profileAvatarTemp: '',
+    profileNickname: '',
     schoolName: config.schoolName
   },
 
@@ -79,33 +82,50 @@ Page({
     }
   },
 
-  authorizeProfile() {
+  onChooseAvatar(event) {
+    const avatarUrl = event && event.detail && event.detail.avatarUrl;
+    if (!avatarUrl) return;
+    this.setData({ profileAvatarTemp: avatarUrl, profileAvatar: avatarUrl, error: '' });
+  },
+
+  onNicknameInput(event) {
+    this.setData({ profileNickname: (event.detail.value || '').slice(0, 16), error: '' });
+  },
+
+  async saveProfile() {
     if (this.data.savingProfile) return;
-    if (!wx.getUserProfile) {
-      this.skipProfile();
+    const nickname = String(this.data.profileNickname || '').trim();
+    if (!nickname && !this.data.profileAvatarTemp) {
+      this.setData({ error: '请选择微信头像，或填写微信昵称' });
       return;
     }
-    wx.getUserProfile({
-      desc: '用于展示你的微信头像和昵称',
-      success: async (res) => {
-        const info = res.userInfo || {};
-        if (!info.nickName && !info.avatarUrl) {
-          this.skipProfile();
-          return;
-        }
-        this.setData({ savingProfile: true });
-        try {
-          const user = await api.updateProfile({
-            nickname: info.nickName ? String(info.nickName).slice(0, 16) : undefined,
-            avatar: info.avatarUrl || undefined
-          });
-          this.setData({ savingProfile: false, user, userInitial: this.initialOf(user), step: 'school' });
-        } catch (error) {
-          this.setData({ savingProfile: false, error: error.message || '资料保存失败' });
-        }
-      },
-      fail: () => this.skipProfile()
-    });
+    if (nickname && (nickname.length < 1 || nickname.length > 16)) {
+      this.setData({ error: '昵称需要 1-16 个字' });
+      return;
+    }
+    this.setData({ savingProfile: true, error: '' });
+    try {
+      let avatar;
+      if (this.data.profileAvatarTemp) {
+        const media = await api.uploadMedia(this.data.profileAvatarTemp, { purpose: 'avatar' });
+        avatar = media.url;
+      }
+      const user = await api.updateProfile({
+        nickname: nickname || undefined,
+        avatar: avatar || undefined
+      });
+      this.setData({
+        savingProfile: false,
+        user,
+        userInitial: this.initialOf(user),
+        profileAvatar: '',
+        profileAvatarTemp: '',
+        profileNickname: '',
+        step: 'school'
+      });
+    } catch (error) {
+      this.setData({ savingProfile: false, error: error.message || '资料保存失败，请重试' });
+    }
   },
 
   skipProfile() {
